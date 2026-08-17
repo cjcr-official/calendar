@@ -373,12 +373,26 @@ input[type=checkbox]{width:auto;margin:0}
     position:relative;z-index:500;
   }
   .sidebar-logo,.sidebar-bottom{display:none}
-  .sidebar-nav{display:flex;flex:1}
+  .sidebar-nav{display:flex;flex:1;padding:.3rem .15rem 0}
+  /* The active tab used to be a filled block the width of the whole slot,
+     which on the first tab sat hard against the screen edge and read as a
+     stray green slab rather than a selection. The highlight belongs to the
+     ICON, not the slot: a pill behind the glyph, label underneath, so every
+     tab occupies the same space whether or not it's the active one and
+     nothing touches the edge. */
   .nav-item{
-    flex:1;flex-direction:column;gap:2px;margin:.3rem .15rem;padding:.4rem .2rem;
-    font-size:9.5px;font-weight:700;letter-spacing:.2px;justify-content:center;text-align:center;
+    flex:1;flex-direction:column;gap:3px;margin:0;padding:.3rem .1rem .45rem;
+    border-radius:0;background:none;
+    font-size:10px;font-weight:600;letter-spacing:.1px;justify-content:flex-start;text-align:center;
   }
-  .nav-item i{font-size:20px}
+  .nav-item:hover{background:none;color:var(--text2)}
+  .nav-item.active{background:none;color:var(--accent-text)}
+  .nav-item i{
+    font-size:21px;line-height:1;display:flex;align-items:center;justify-content:center;
+    width:100%;max-width:60px;height:30px;border-radius:15px;
+    transition:background .18s,color .18s;
+  }
+  .nav-item.active i{background:var(--accent-bg)}
   .topbar{padding:.6rem 1rem;padding-top:calc(.6rem + env(safe-area-inset-top,0px))}
   .topbar-title{font-size:16px}
   .content{padding:1rem .85rem 2rem}
