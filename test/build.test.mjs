@@ -55,6 +55,14 @@ for (const m of pageMetaSrc.matchAll(/render:\s*([A-Za-z_$][\w$]*)/g)) {
 // Every showPage('x') target is a real page.
 for (const m of HTML.matchAll(/showPage\('([^']+)'\)/g)) ok(metaIds.includes(m[1]), `showPage('${m[1]}') targets a real page`);
 
+// ── first-run centring is set in one place and cleared in another ───────────
+// renderHome adds .centred to the content area; showPage clears it. Lose the
+// clear and every OTHER page inherits the centring, lose the rule and the
+// first screen goes back to hugging the top bar — neither errors anywhere.
+ok(/classList\.toggle\('centred'/.test(SCRIPT), 'renderHome toggles .centred on the content area');
+ok(/classList\.remove\('centred'\)/.test(SCRIPT), 'showPage clears .centred so it cannot leak to another page');
+ok(/\.content\.centred/.test(HTML), 'the .centred layout rule exists in the stylesheet');
+
 // ── the setup screen's SQL and schema.sql must not drift ────────────────────
 // The app shows SETUP_SQL to a user who may never open the repo; schema.sql is
 // what anyone reading the repo runs. If they disagree, one of them is wrong.

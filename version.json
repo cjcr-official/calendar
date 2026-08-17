@@ -1,1 +1,1 @@
-{"version":9,"note":"v9: removes the stray dot at the bottom of the screen (an empty toast that was never fully hidden) and closes the gap under the tab bar."}
+{"version":10,"note":"v10: the first-run setup card is centred in the screen instead of hugging the top bar with a third of the phone empty underneath, and is capped narrower on desktop."}

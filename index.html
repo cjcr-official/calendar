@@ -189,6 +189,18 @@ input[type=checkbox]{width:auto;margin:0}
 .page{display:none}
 .page.active{display:block}
 .page-max{max-width:1080px;margin:0 auto}
+/* First run hides the whole dashboard and leaves ONE short card on the page, so
+   it sat under the top bar with a third of a phone screen empty beneath it —
+   which reads as a broken render, not as a first screen. `.centred` (set by
+   renderHome, cleared by showPage) centres that card in the space instead.
+   The centring is `margin:auto` on the wrapper rather than justify-content on
+   purpose: inside a scroll container, if the card is ever taller than the space
+   (short screen, large text) justify-content:center pushes its top above the
+   scroll origin where nothing can reach it, while auto margins collapse to 0
+   and leave it scrollable from the top. */
+.content.centred{display:flex;flex-direction:column}
+.content.centred > .page.active{display:flex;flex-direction:column;flex:1}
+.content.centred > .page.active > .page-max{width:100%;margin:auto}
 
 /* ── stat cards ── */
 .stat-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:.8rem;margin-bottom:1rem}
@@ -274,7 +286,10 @@ input[type=checkbox]{width:auto;margin:0}
 .swatch.on{border-color:var(--text);box-shadow:0 0 0 2px var(--bg)}
 
 /* ── first run ── */
-.firstrun{background:linear-gradient(180deg,var(--accent-bg),transparent 55%),var(--surface)}
+/* Capped narrower than .page-max and un-margined: it's the only card on the
+   page, so a 1080px-wide two-step list on desktop looks like a mistake, and a
+   trailing margin would offset the centring above. */
+.firstrun{background:linear-gradient(180deg,var(--accent-bg),transparent 55%),var(--surface);max-width:430px;margin:0 auto}
 .fr-step{display:flex;gap:.85rem;align-items:flex-start;padding:.85rem 0;border-top:1px solid var(--border)}
 .fr-num{
   width:36px;height:36px;border-radius:11px;flex-shrink:0;display:flex;align-items:center;justify-content:center;
@@ -1366,7 +1381,11 @@ function showPage(page) {
   document.getElementById('topbar-title').textContent = meta.title;
   document.getElementById('topbar-crumb').textContent = meta.crumb;
   document.getElementById('topbar-actions').innerHTML = PAGE_ACTIONS[page] || '';
-  document.querySelector('.content').scrollTop = 0;
+  const content = document.querySelector('.content');
+  content.scrollTop = 0;
+  // Only renderHome's first-run branch wants this, and it re-adds it below.
+  // Cleared here so leaving Home can't strand another page centred.
+  content.classList.remove('centred');
   meta.render();
 }
 // Redraw whatever is on screen. Called after every write, so a change made in a
@@ -1386,6 +1405,10 @@ function renderHome() {
   // card until there's at least one batch.
   const fresh = !cache.assignments.length;
   document.getElementById('home-firstrun').style.display = fresh ? '' : 'none';
+  // One short card and nothing else: centre it rather than leaving the bottom
+  // two-thirds of the screen blank. Toggled both ways — adding the first batch
+  // rerenders in place without going through showPage.
+  document.querySelector('.content').classList.toggle('centred', fresh);
   HOME_CARDS.forEach(id => { document.getElementById(id).style.display = fresh ? 'none' : ''; });
   if (fresh) {
     // Adding a teacher first is the natural order, but it isn't required —
