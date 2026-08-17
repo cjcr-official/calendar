@@ -418,9 +418,9 @@ input[type=checkbox]{width:auto;margin:0}
       </div>
     </div>
     <ol class="steps" style="margin-bottom:1.3rem">
-      <li>Create a free project at <strong style="color:var(--text)">supabase.com</strong> (any name, any region near you).</li>
-      <li>Open the project's <strong style="color:var(--text)">SQL Editor</strong>, paste the script below, and press Run.</li>
-      <li>Go to <strong style="color:var(--text)">Project Settings → API</strong> and copy the Project URL and the <em>anon / public</em> key into the boxes below.</li>
+      <li>Create a free project — <a href="https://supabase.com/dashboard/new" target="_blank" rel="noopener" style="color:var(--accent-text);font-weight:700">open Supabase</a>. Any name, pick the region nearest you.</li>
+      <li>Copy the Project URL from <strong style="color:var(--text)">Project Settings → API</strong> into the box below — the rest of the links on this page then point at your own project.</li>
+      <li>Open the <strong style="color:var(--text)">SQL Editor</strong>, paste the script below, press Run. Then come back and paste the anon key.</li>
     </ol>
     <div class="card-head" style="margin-bottom:.5rem">
       <div class="card-title">Database script</div>
@@ -430,7 +430,10 @@ input[type=checkbox]{width:auto;margin:0}
     <div class="auth-msg err" id="setup-error"></div>
     <div class="form-group">
       <label>Project URL</label>
-      <input id="setup-url" type="url" inputmode="url" autocapitalize="off" autocorrect="off" spellcheck="false" placeholder="https://xxxxxxxx.supabase.co">
+      <input id="setup-url" type="url" inputmode="url" autocapitalize="off" autocorrect="off" spellcheck="false" placeholder="https://xxxxxxxx.supabase.co" oninput="setupLinks()">
+      <!-- Filled in by setupLinks() once the URL names a real project, so the
+           SQL Editor and API pages are one tap away instead of a hunt. -->
+      <div class="hint" id="setup-links" style="display:none"></div>
     </div>
     <div class="form-group">
       <label>Anon / public key</label>
@@ -1095,6 +1098,27 @@ function showSetup() {
   document.getElementById('loading-screen').style.display = 'none';
   document.getElementById('setup-wrap').style.display = 'flex';
 }
+// A Supabase project URL carries its own project ref (https://<ref>.supabase.co),
+// which is all the dashboard deep links need.
+function projectRef(url) {
+  let u = String(url || '').trim().replace(/\/+$/, '');
+  if (u && !/^https?:\/\//i.test(u)) u = 'https://' + u;   // pasted without the scheme
+  const m = u.match(/^https:\/\/([a-z0-9-]+)\.supabase\.(?:co|in)$/i);
+  return m ? m[1] : null;
+}
+// Point the setup steps at THIS project once the URL is known, so the SQL Editor
+// and the API keys page are one tap away rather than a hunt through the dashboard.
+function setupLinks() {
+  const ref = projectRef(document.getElementById('setup-url').value);
+  const box = document.getElementById('setup-links');
+  if (!ref) { box.style.display = 'none'; return; }
+  const base = 'https://supabase.com/dashboard/project/' + encodeURIComponent(ref);
+  box.style.display = '';
+  box.innerHTML =
+    `<a href="${base}/sql/new" target="_blank" rel="noopener" style="color:var(--accent-text);font-weight:700">Open the SQL Editor</a>` +
+    ' &nbsp;·&nbsp; ' +
+    `<a href="${base}/settings/api" target="_blank" rel="noopener" style="color:var(--accent-text);font-weight:700">Get the anon key</a>`;
+}
 function copySetupSql(btn) {
   const done = ok => { btn.innerHTML = ok ? '<i class="ti ti-check"></i> Copied' : '<i class="ti ti-x"></i> Select it manually'; setTimeout(() => { btn.innerHTML = '<i class="ti ti-copy"></i> Copy'; }, 2000); };
   if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(SETUP_SQL).then(() => done(true), () => done(false));
@@ -1104,11 +1128,13 @@ async function doSetup() {
   const err = document.getElementById('setup-error');
   const show = m => { err.textContent = m; err.classList.add('show'); };
   err.classList.remove('show');
-  let url = document.getElementById('setup-url').value.trim().replace(/\/+$/, '');
+  const typed = document.getElementById('setup-url').value;
   const key = document.getElementById('setup-key').value.trim();
-  if (!url || !key) { show('Paste both the project URL and the anon key.'); return; }
-  if (!/^https?:\/\//i.test(url)) url = 'https://' + url;
-  if (!/^https:\/\/[a-z0-9-]+\.supabase\.(co|in)$/i.test(url)) { show("That doesn't look like a Supabase project URL. It should look like https://abcdefgh.supabase.co"); return; }
+  if (!typed.trim() || !key) { show('Paste both the project URL and the anon key.'); return; }
+  const ref = projectRef(typed);
+  if (!ref) { show("That doesn't look like a Supabase project URL. It should look like https://abcdefgh.supabase.co"); return; }
+  // Store the canonical form, whatever shape it was pasted in.
+  const url = 'https://' + ref + '.supabase.co';
   const btn = document.getElementById('setup-btn');
   btn.disabled = true; btn.innerHTML = '<span class="spinner"></span> Checking…';
   try {

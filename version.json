@@ -1,1 +1,1 @@
-{"version":1,"note":"v1: first release — teachers, grading batches with due dates and progress, month calendar, workload estimates."}
+{"version":2,"note":"v2: the setup screen now links straight to your own project's SQL Editor and API keys page as soon as the project URL is filled in."}
