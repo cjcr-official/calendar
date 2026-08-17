@@ -1,0 +1,1945 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<!-- No maximum-scale / user-scalable=no — blocking pinch-zoom fails WCAG 1.4.4.
+     The cost of leaving it out is iOS auto-zooming when a sub-16px input is
+     focused, so every input in the stylesheet is >=16px on coarse pointers. -->
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="description" content="Grading Calendar — track grading work for several teachers: batches, due dates, progress and workload.">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Grading">
+<meta name="application-name" content="Grading Calendar">
+<!-- rewritten per theme by applyTheme(); this is the boot value -->
+<meta name="theme-color" content="#0d1512">
+<meta name="color-scheme" content="dark light">
+<link rel="manifest" href="manifest.json">
+<link rel="icon" type="image/png" href="icon.png">
+<link rel="apple-touch-icon" href="icon-180.png">
+<title>Grading Calendar</title>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&family=DM+Serif+Display:ital@0;1&display=swap" rel="stylesheet">
+<link href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@2.47.0/tabler-icons.min.css" rel="stylesheet" integrity="sha384-PwEnNZvp50/uDLtKrd1s2D4Xe/y+fCVtEigigjik/PgHlDXUF1uJ32m7guk/XWYV" crossorigin="anonymous">
+<!-- pinned + SRI so a compromised CDN can't swap the code that holds the auth session -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.110.1" integrity="sha384-fx4y4cDx8NYfissnVzdGJY3yVXWY3rn5ab5HTUjpvgT35oDiyAbjjqnLhnRmESNE" crossorigin="anonymous"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+
+/* ── DARK (default) ── */
+:root{
+  color-scheme:dark;
+  --bg:#080d0b;
+  --bg2:#0d1512;
+  --surface:#131d19;
+  --surface2:#1a2621;
+  --border:rgba(255,255,255,.07);
+  --border2:rgba(255,255,255,.13);
+  --text:#e6efea;
+  --text2:#8ea39a;
+  --text3:#7b9188;      /* >=4.5:1 on --surface — micro-labels stay readable */
+  --accent:#10b981;
+  --accent2:#14b8a6;
+  --accent-glow:rgba(16,185,129,.32);
+  --accent-bg:rgba(16,185,129,.15);
+  --accent-text:#6ee7b7;
+  --on-accent:#04150f;
+  --glass:rgba(13,21,18,.72);
+  --green:#22c55e;      --green-bg:rgba(34,197,94,.12);
+  --red:#f05252;        --red-bg:rgba(240,82,82,.13);
+  --amber:#f59e0b;      --amber-bg:rgba(245,158,11,.13);
+  --blue:#3b82f6;       --blue-bg:rgba(59,130,246,.13);
+  --radius:16px; --radius-sm:11px; --radius-lg:22px; --radius-pill:999px;
+  --sidebar-w:216px;
+  --shadow:0 10px 34px rgba(0,0,0,.42);
+  --shadow-lg:0 28px 80px rgba(0,0,0,.62);
+}
+/* ── LIGHT ── */
+[data-theme="light"]{
+  color-scheme:light;
+  --bg:#eef3f0;
+  --bg2:#e5ece8;
+  --surface:#ffffff;
+  --surface2:#eef3f0;
+  --border:rgba(0,0,0,.08);
+  --border2:rgba(0,0,0,.15);
+  --text:#0b1512;
+  --text2:#4a5c55;
+  --text3:#5a6d65;
+  --accent:#0d9668;
+  --accent2:#0f9488;
+  --accent-glow:rgba(13,150,104,.20);
+  --accent-bg:rgba(13,150,104,.09);
+  --accent-text:#07724f;
+  --on-accent:#ffffff;
+  --glass:rgba(255,255,255,.74);
+  --green:#15803d;      --green-bg:rgba(21,128,61,.10);
+  --red:#dc2626;        --red-bg:rgba(220,38,38,.10);
+  --amber:#b45309;      --amber-bg:rgba(180,83,9,.10);
+  --blue:#1d4ed8;       --blue-bg:rgba(29,78,216,.10);
+  --shadow:0 8px 26px rgba(15,40,32,.12);
+  --shadow-lg:0 24px 64px rgba(15,40,32,.20);
+}
+
+html,body{height:100%}
+body{
+  font-family:'Plus Jakarta Sans',sans-serif;background:var(--bg);color:var(--text);
+  font-size:14px;height:100%;overflow:hidden;overscroll-behavior:none;
+  -webkit-text-size-adjust:100%;text-size-adjust:100%;
+  -webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale;
+  font-variant-numeric:tabular-nums;font-feature-settings:"tnum" 1;
+  transition:background .2s,color .2s;
+}
+.mono{font-family:'JetBrains Mono',monospace}
+.serif{font-family:'DM Serif Display',serif;font-style:italic;letter-spacing:-.3px}
+.muted{color:var(--text2)}
+.hide{display:none !important}
+::selection{background:var(--accent-bg);color:var(--text)}
+
+/* ── buttons ── */
+.btn{
+  display:inline-flex;align-items:center;justify-content:center;gap:.4rem;
+  padding:.6rem 1rem;border:1px solid var(--border2);border-radius:var(--radius-sm);
+  background:var(--surface2);color:var(--text);font-size:13.5px;font-weight:600;
+  font-family:inherit;cursor:pointer;transition:transform .08s,border-color .15s,background .15s;
+  white-space:nowrap;
+}
+.btn:hover{border-color:var(--accent)}
+.btn:active{transform:scale(.975)}
+.btn:disabled{opacity:.55;cursor:default;transform:none}
+.btn-primary{background:var(--accent);border-color:var(--accent);color:var(--on-accent);box-shadow:0 4px 16px var(--accent-glow)}
+.btn-primary:hover{filter:brightness(1.06)}
+.btn-danger{background:var(--red-bg);border-color:rgba(240,82,82,.35);color:var(--red)}
+.btn-ghost{background:transparent;border-color:transparent;color:var(--text2)}
+.btn-ghost:hover{background:var(--surface2);color:var(--text)}
+.btn-sm{padding:.4rem .7rem;font-size:12.5px}
+.btn-full{width:100%}
+.icon-btn{
+  display:inline-flex;align-items:center;justify-content:center;
+  width:38px;height:38px;border-radius:var(--radius-sm);border:1px solid var(--border);
+  background:var(--surface);color:var(--text2);cursor:pointer;font-size:18px;flex-shrink:0;
+  transition:color .15s,border-color .15s;
+}
+.icon-btn:hover{color:var(--text);border-color:var(--border2)}
+
+/* ── inputs ── */
+label{display:block;font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.7px;margin-bottom:.35rem;font-family:'JetBrains Mono',monospace}
+input,select,textarea{
+  width:100%;padding:.6rem .75rem;border:1px solid var(--border2);border-radius:var(--radius-sm);
+  /* 16px minimum: anything smaller makes iOS zoom the page on focus */
+  font-size:16px;font-family:'Plus Jakarta Sans',sans-serif;
+  background:var(--bg2);color:var(--text);outline:none;transition:border-color .15s,box-shadow .15s;
+}
+input:focus,select:focus,textarea:focus{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-bg)}
+textarea{resize:vertical;min-height:74px;line-height:1.5}
+input[type=checkbox]{width:auto;margin:0}
+.form-group{margin-bottom:.9rem}
+.form-row{display:grid;grid-template-columns:1fr 1fr;gap:.7rem}
+.hint{font-size:11.5px;color:var(--text3);margin-top:.35rem;line-height:1.45}
+
+/* ── cards ── */
+.card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:1.1rem;margin-bottom:1rem}
+.card-head{display:flex;align-items:center;justify-content:space-between;gap:.75rem;margin-bottom:.9rem}
+.card-title{font-size:13px;font-weight:700;letter-spacing:.4px}
+.card-sub{font-size:11.5px;color:var(--text3);font-family:'JetBrains Mono',monospace}
+
+/* ── badges ── */
+.badge{display:inline-flex;align-items:center;gap:.25rem;padding:.2rem .5rem;border-radius:var(--radius-pill);font-size:10.5px;font-weight:700;font-family:'JetBrains Mono',monospace;text-transform:uppercase;letter-spacing:.4px;white-space:nowrap}
+.badge-todo{background:var(--surface2);color:var(--text2)}
+.badge-doing{background:var(--blue-bg);color:var(--blue)}
+.badge-done{background:var(--green-bg);color:var(--green)}
+.badge-overdue{background:var(--red-bg);color:var(--red)}
+.badge-soon{background:var(--amber-bg);color:var(--amber)}
+
+/* ── layout ── */
+.app{display:none;height:100%}
+.sidebar{width:var(--sidebar-w);background:var(--bg2);border-right:1px solid var(--border);display:flex;flex-direction:column;flex-shrink:0}
+.sidebar-logo{padding:1.1rem 1rem;display:flex;align-items:center;gap:10px;cursor:pointer}
+.nav-item{
+  display:flex;align-items:center;gap:.7rem;padding:.65rem .95rem;margin:.1rem .55rem;
+  border-radius:var(--radius-sm);color:var(--text2);cursor:pointer;font-size:13.5px;font-weight:600;
+  transition:background .15s,color .15s;
+}
+.nav-item i{font-size:18px}
+.nav-item:hover{background:var(--surface);color:var(--text)}
+.nav-item.active{background:var(--accent-bg);color:var(--accent-text)}
+/* Settings lives in the sidebar's bottom group on desktop and in the bottom bar
+   on mobile — two elements, only ever one of them shown. */
+.nav-mobile-settings{display:none}
+.main{flex:1;display:flex;flex-direction:column;min-width:0}
+.topbar{
+  background:var(--bg2);border-bottom:1px solid var(--border);padding:.7rem 1.4rem;
+  display:flex;align-items:center;justify-content:space-between;gap:1rem;flex-shrink:0;
+  position:sticky;top:0;z-index:400;
+}
+.topbar-title{font-size:17px;font-weight:700;letter-spacing:-.3px;line-height:1.2}
+.topbar-crumb{font-size:10.5px;color:var(--text3);font-family:'JetBrains Mono',monospace;letter-spacing:.6px;text-transform:uppercase}
+.topbar-right{display:flex;align-items:center;gap:.5rem}
+.content{flex:1;overflow-y:auto;overscroll-behavior:contain;padding:1.3rem 1.4rem 3rem;-webkit-overflow-scrolling:touch}
+.page{display:none}
+.page.active{display:block}
+.page-max{max-width:1080px;margin:0 auto}
+
+/* ── stat cards ── */
+.stat-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:.8rem;margin-bottom:1rem}
+.stat{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:.9rem 1rem;position:relative;overflow:hidden}
+.stat::after{content:'';position:absolute;left:0;top:0;bottom:0;width:3px;background:var(--accent);opacity:.85}
+.stat.red::after{background:var(--red)} .stat.amber::after{background:var(--amber)} .stat.blue::after{background:var(--blue)}
+.stat-label{font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.8px;font-family:'JetBrains Mono',monospace}
+.stat-value{font-size:24px;font-weight:700;margin-top:.3rem;letter-spacing:-.5px}
+.stat-note{font-size:11px;color:var(--text3);margin-top:.15rem}
+
+/* ── assignment rows ── */
+.row{
+  display:flex;align-items:center;gap:.8rem;padding:.8rem .9rem;background:var(--surface);
+  border:1px solid var(--border);border-radius:var(--radius-sm);margin-bottom:.55rem;
+  cursor:pointer;transition:border-color .15s,transform .08s;
+}
+.row:hover{border-color:var(--border2)}
+.row:active{transform:scale(.995)}
+.row.is-done{opacity:.62}
+.row.is-overdue{border-color:rgba(240,82,82,.4)}
+.dot{width:10px;height:10px;border-radius:50%;flex-shrink:0}
+.row-main{flex:1;min-width:0}
+.row-title{font-size:14px;font-weight:700;letter-spacing:-.15px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.row.is-done .row-title{text-decoration:line-through}
+.row-meta{font-size:11.5px;color:var(--text3);margin-top:.2rem;display:flex;align-items:center;gap:.45rem;flex-wrap:wrap}
+.row-right{display:flex;align-items:center;gap:.6rem;flex-shrink:0}
+.row-due{font-size:12px;font-weight:700;font-family:'JetBrains Mono',monospace;text-align:right;white-space:nowrap}
+
+/* ── progress ── */
+.bar{height:6px;border-radius:var(--radius-pill);background:var(--surface2);overflow:hidden;margin-top:.45rem}
+[data-theme="light"] .bar{background:rgba(0,0,0,.07)}
+.bar-fill{height:100%;border-radius:var(--radius-pill);background:var(--accent);transition:width .25s}
+.bar-fill.full{background:var(--green)}
+
+/* ── segmented filter ── */
+.seg{display:inline-flex;background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius-pill);padding:3px;gap:2px;overflow-x:auto;max-width:100%}
+.seg::-webkit-scrollbar{display:none}
+.seg button{
+  border:none;background:none;color:var(--text2);font-family:inherit;font-size:12.5px;font-weight:600;
+  padding:.4rem .8rem;border-radius:var(--radius-pill);cursor:pointer;white-space:nowrap;
+}
+.seg button.active{background:var(--accent);color:var(--on-accent)}
+
+/* ── calendar ── */
+.cal-head{display:flex;align-items:center;justify-content:space-between;gap:.6rem;margin-bottom:.7rem}
+.cal-month{font-size:15px;font-weight:700;letter-spacing:-.2px}
+.cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:4px}
+.cal-wd{font-size:9.5px;text-align:center;color:var(--text3);font-family:'JetBrains Mono',monospace;font-weight:700;letter-spacing:.6px;text-transform:uppercase;padding:.25rem 0}
+.cal-day{
+  min-height:64px;border-radius:9px;background:var(--bg2);border:1px solid transparent;
+  padding:4px 5px;display:flex;flex-direction:column;gap:2px;cursor:pointer;overflow:hidden;
+  transition:border-color .15s,background .15s;
+}
+.cal-day:hover{border-color:var(--border2)}
+.cal-day.other{opacity:.38}
+.cal-day.today{border-color:var(--accent)}
+.cal-day.sel{background:var(--accent-bg);border-color:var(--accent)}
+.cal-num{font-size:11px;font-weight:700;font-family:'JetBrains Mono',monospace;color:var(--text2)}
+.cal-day.today .cal-num{color:var(--accent-text)}
+.cal-chip{
+  font-size:9.5px;line-height:1.3;padding:2px 4px;border-radius:4px;font-weight:700;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#fff;
+}
+.cal-chip.done{opacity:.5;text-decoration:line-through}
+.cal-more{font-size:9px;color:var(--text3);font-family:'JetBrains Mono',monospace;padding-left:2px}
+
+/* ── teacher cards ── */
+.t-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:.8rem}
+.t-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:1rem;cursor:pointer;transition:border-color .15s,transform .08s;position:relative;overflow:hidden}
+.t-card:hover{border-color:var(--border2)}
+.t-card:active{transform:scale(.99)}
+.t-card::before{content:'';position:absolute;left:0;top:0;bottom:0;width:4px;background:var(--tc,var(--accent))}
+.t-name{font-size:15px;font-weight:700;letter-spacing:-.2px}
+.t-sub{font-size:12px;color:var(--text3);margin-top:.15rem}
+.t-stats{display:flex;gap:1.1rem;margin-top:.75rem}
+.t-stat-v{font-size:16px;font-weight:700;font-family:'JetBrains Mono',monospace}
+.t-stat-l{font-size:9.5px;color:var(--text3);text-transform:uppercase;letter-spacing:.6px;font-family:'JetBrains Mono',monospace}
+
+/* ── swatches ── */
+.swatches{display:flex;gap:.45rem;flex-wrap:wrap}
+.swatch{width:30px;height:30px;border-radius:50%;border:2px solid transparent;cursor:pointer;padding:0;transition:transform .1s}
+.swatch:hover{transform:scale(1.12)}
+.swatch.on{border-color:var(--text);box-shadow:0 0 0 2px var(--bg)}
+
+/* ── empty state ── */
+.empty{text-align:center;padding:2.5rem 1rem;color:var(--text3)}
+.empty i{font-size:36px;opacity:.5;display:block;margin-bottom:.6rem}
+.empty-title{font-size:14px;font-weight:700;color:var(--text2);margin-bottom:.3rem}
+.empty-text{font-size:12.5px;line-height:1.5;max-width:320px;margin:0 auto}
+
+/* ── modals ── */
+.modal-overlay{
+  position:fixed;inset:0;background:rgba(0,0,0,.55);backdrop-filter:blur(3px);
+  z-index:1000;display:none;align-items:center;justify-content:center;padding:1rem;
+}
+.modal-overlay.open{display:flex}
+.modal{
+  background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-lg);
+  width:100%;max-width:520px;max-height:90dvh;overflow-y:auto;box-shadow:var(--shadow-lg);
+  padding:1.3rem;overscroll-behavior:contain;
+}
+.modal-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:1.1rem;gap:1rem}
+.modal-title{font-size:17px;font-weight:700;letter-spacing:-.3px}
+.modal-actions{display:flex;gap:.6rem;margin-top:1.2rem}
+.modal-actions .btn{flex:1}
+
+/* ── auth / setup ── */
+.auth-wrap{
+  height:100%;overflow-y:auto;display:none;align-items:center;justify-content:center;padding:1.5rem;
+  background:var(--bg);
+  background-image:radial-gradient(ellipse at 20% 45%,var(--accent-glow) 0%,transparent 58%),
+                   radial-gradient(ellipse at 82% 18%,rgba(20,184,166,.12) 0%,transparent 52%);
+}
+.auth-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-lg);padding:1.75rem;width:100%;max-width:420px;box-shadow:var(--shadow-lg);margin:auto}
+.auth-tabs{display:flex;background:var(--bg2);border-radius:var(--radius-sm);padding:3px;margin-bottom:1.3rem}
+.auth-tab{flex:1;border:none;background:none;color:var(--text2);font-family:inherit;font-size:13px;font-weight:600;padding:.55rem;border-radius:9px;cursor:pointer}
+.auth-tab.active{background:var(--accent);color:var(--on-accent)}
+.auth-msg{display:none;padding:.65rem .8rem;border-radius:var(--radius-sm);font-size:12.5px;line-height:1.45;margin-bottom:.9rem}
+.auth-msg.show{display:block}
+.auth-msg.err{background:var(--red-bg);color:var(--red);border:1px solid rgba(240,82,82,.3)}
+.auth-msg.ok{background:var(--green-bg);color:var(--green);border:1px solid rgba(34,197,94,.3)}
+
+/* ── loading / overlays ── */
+.screen{position:fixed;inset:0;height:100dvh;background:var(--bg);display:flex;align-items:center;justify-content:center;flex-direction:column;gap:1rem;z-index:9998;padding:2rem 1.25rem;text-align:center;overflow-y:auto}
+.spinner{display:inline-block;width:14px;height:14px;border:2px solid currentColor;border-right-color:transparent;border-radius:50%;animation:spin .7s linear infinite;vertical-align:-2px}
+@keyframes spin{to{transform:rotate(360deg)}}
+.load-bar{width:190px;height:3px;border-radius:2px;background:var(--surface2);overflow:hidden}
+.load-bar::after{content:'';display:block;width:40%;height:100%;background:var(--accent);animation:slide 1.1s ease-in-out infinite}
+@keyframes slide{0%{transform:translateX(-100%)}100%{transform:translateX(350%)}}
+
+/* ── toast ── */
+.toast{
+  position:fixed;left:50%;transform:translateX(-50%) translateY(140%);
+  bottom:max(1.25rem,env(safe-area-inset-bottom,1rem));z-index:2000;
+  background:var(--surface2);border:1px solid var(--border2);color:var(--text);
+  padding:.7rem 1.1rem;border-radius:var(--radius-pill);font-size:13px;font-weight:600;
+  box-shadow:var(--shadow);transition:transform .25s;max-width:88vw;text-align:center;
+}
+.toast.show{transform:translateX(-50%) translateY(0)}
+.toast.success{border-color:rgba(34,197,94,.4);color:var(--green)}
+.toast.error{border-color:rgba(240,82,82,.4);color:var(--red)}
+
+/* ── code block (setup SQL) ── */
+.code{
+  background:var(--bg);border:1px solid var(--border);border-radius:var(--radius-sm);
+  padding:.75rem;font-family:'JetBrains Mono',monospace;font-size:11px;line-height:1.55;
+  color:var(--text2);white-space:pre;overflow-x:auto;max-height:230px;overflow-y:auto;
+}
+
+/* ── steps list ── */
+.steps{counter-reset:s;list-style:none;display:flex;flex-direction:column;gap:.8rem}
+.steps li{counter-increment:s;display:flex;gap:.7rem;font-size:13px;line-height:1.5;color:var(--text2)}
+.steps li::before{
+  content:counter(s);flex-shrink:0;width:22px;height:22px;border-radius:50%;
+  background:var(--accent-bg);color:var(--accent-text);font-family:'JetBrains Mono',monospace;
+  font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center;
+}
+
+/* ── mobile ── */
+@media (max-width:820px){
+  .stat-grid{grid-template-columns:repeat(2,1fr)}
+}
+@media (max-width:768px){
+  .app{flex-direction:column-reverse}
+  .sidebar{
+    width:100%;flex-direction:row;border-right:none;border-top:1px solid var(--border);
+    padding-bottom:env(safe-area-inset-bottom,0px);background:var(--glass);backdrop-filter:blur(14px);
+    position:relative;z-index:500;
+  }
+  .sidebar-logo,.sidebar-bottom{display:none}
+  .sidebar-nav{display:flex;flex:1}
+  .nav-mobile-settings{display:flex}
+  .nav-item{
+    flex:1;flex-direction:column;gap:2px;margin:.3rem .15rem;padding:.4rem .2rem;
+    font-size:9.5px;font-weight:700;letter-spacing:.2px;justify-content:center;text-align:center;
+  }
+  .nav-item i{font-size:20px}
+  .topbar{padding:.6rem 1rem;padding-top:calc(.6rem + env(safe-area-inset-top,0px))}
+  .topbar-title{font-size:16px}
+  .content{padding:1rem .85rem 2rem}
+  .modal-overlay{align-items:flex-end;padding:0}
+  .modal{
+    max-width:100%;border-radius:var(--radius-lg) var(--radius-lg) 0 0;max-height:92dvh;
+    padding-bottom:calc(1.3rem + env(safe-area-inset-bottom,0px));
+  }
+  .cal-day{min-height:52px}
+  .form-row{grid-template-columns:1fr}
+  .form-row.keep2{grid-template-columns:1fr 1fr}
+}
+@media (max-width:480px){
+  .stat-value{font-size:20px}
+}
+</style>
+</head>
+<body>
+
+<!-- shared logo mark (matches icon.png) -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="gc-logo" viewBox="0 0 100 100">
+    <defs><linearGradient id="gcbar" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#34d399"/><stop offset="100%" stop-color="#0d9488"/></linearGradient></defs>
+    <rect x="0" y="0" width="100" height="100" rx="17" fill="#12211d" stroke="#254a40" stroke-width="1.4"/>
+    <rect x="1" y="0" width="15" height="100" rx="7.5" fill="url(#gcbar)"/>
+    <circle cx="37" cy="27" r="4" fill="#3f6b60"/><circle cx="51" cy="27" r="4" fill="#3f6b60"/><circle cx="65" cy="27" r="4" fill="#3f6b60"/>
+    <polyline points="34,58 46,70 71,40" fill="none" stroke="#10b981" stroke-width="9.2" stroke-linecap="round" stroke-linejoin="round"/>
+  </symbol>
+</svg>
+
+<!-- UPDATE OVERLAY -->
+<div class="screen" id="update-overlay" style="display:none;z-index:9999">
+  <svg width="60" height="60" viewBox="0 0 100 100"><use href="#gc-logo"/></svg>
+  <div class="serif" style="font-size:24px">Update Available</div>
+  <div style="font-size:13.5px;color:var(--text2);max-width:340px">A new version of Grading Calendar is ready.</div>
+  <div id="update-note" class="mono" style="font-size:12px;color:var(--text3);max-width:340px;line-height:1.5"></div>
+  <button class="btn btn-primary" onclick="doUpdate()" id="update-btn" style="margin-top:.6rem;padding:.8rem 1.8rem"><i class="ti ti-refresh"></i> Update Now</button>
+</div>
+
+<!-- LOADING -->
+<div class="screen" id="loading-screen">
+  <div style="display:flex;align-items:center;gap:14px">
+    <svg width="50" height="50" viewBox="0 0 100 100"><use href="#gc-logo"/></svg>
+    <div style="text-align:left">
+      <div class="serif" style="font-size:26px;line-height:1">Grading</div>
+      <div class="mono" style="font-size:10px;color:var(--text3);margin-top:4px;letter-spacing:2px">LOADING...</div>
+    </div>
+  </div>
+  <div class="load-bar"></div>
+</div>
+
+<!-- FIRST-RUN SETUP (only when no Supabase project is configured) -->
+<div class="auth-wrap" id="setup-wrap">
+  <div class="auth-card" style="max-width:560px">
+    <div style="display:flex;align-items:center;gap:13px;margin-bottom:1.4rem">
+      <svg width="44" height="44" viewBox="0 0 100 100"><use href="#gc-logo"/></svg>
+      <div>
+        <div class="serif" style="font-size:23px;line-height:1">Grading Calendar</div>
+        <div style="font-size:12px;color:var(--text3)">One-time setup — connect your database</div>
+      </div>
+    </div>
+    <ol class="steps" style="margin-bottom:1.3rem">
+      <li>Create a free project — <a href="https://supabase.com/dashboard/new" target="_blank" rel="noopener" style="color:var(--accent-text);font-weight:700">open Supabase</a>. Any name, pick the region nearest you.</li>
+      <li>Copy the Project URL from <strong style="color:var(--text)">Project Settings → API</strong> into the box below — the rest of the links on this page then point at your own project.</li>
+      <li>Open the <strong style="color:var(--text)">SQL Editor</strong>, paste the script below, press Run. Then come back and paste the anon key.</li>
+    </ol>
+    <div class="card-head" style="margin-bottom:.5rem">
+      <div class="card-title">Database script</div>
+      <button class="btn btn-sm" onclick="copySetupSql(this)"><i class="ti ti-copy"></i> Copy</button>
+    </div>
+    <div class="code" id="setup-sql" style="margin-bottom:1.2rem"></div>
+    <div class="auth-msg err" id="setup-error"></div>
+    <div class="form-group">
+      <label>Project URL</label>
+      <input id="setup-url" type="url" inputmode="url" autocapitalize="off" autocorrect="off" spellcheck="false" placeholder="https://xxxxxxxx.supabase.co" oninput="setupLinks()">
+      <!-- Filled in by setupLinks() once the URL names a real project, so the
+           SQL Editor and API pages are one tap away instead of a hunt. -->
+      <div class="hint" id="setup-links" style="display:none"></div>
+    </div>
+    <div class="form-group">
+      <label>Anon / public key</label>
+      <textarea id="setup-key" rows="3" autocapitalize="off" autocorrect="off" spellcheck="false" placeholder="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..." style="font-family:'JetBrains Mono',monospace;font-size:12px;min-height:64px"></textarea>
+      <div class="hint">The anon key is meant to be public — every row is still protected by row-level security, so it only ever returns your own data.</div>
+    </div>
+    <button class="btn btn-primary btn-full" id="setup-btn" onclick="doSetup()"><i class="ti ti-plug-connected"></i> Connect</button>
+  </div>
+</div>
+
+<!-- AUTH -->
+<div class="auth-wrap" id="auth-wrap">
+  <div class="auth-card">
+    <div style="display:flex;align-items:center;gap:13px;margin-bottom:1.5rem">
+      <svg width="46" height="46" viewBox="0 0 100 100"><use href="#gc-logo"/></svg>
+      <div>
+        <div class="serif" style="font-size:24px;line-height:1">Grading Calendar</div>
+        <div style="font-size:12px;color:var(--text3);margin-top:2px">Every stack, every teacher, every due date</div>
+      </div>
+    </div>
+    <div class="auth-tabs">
+      <button class="auth-tab active" id="tab-login" onclick="switchAuthTab('login')">Sign In</button>
+      <button class="auth-tab" id="tab-signup" onclick="switchAuthTab('signup')">Create Account</button>
+    </div>
+    <div class="auth-msg err" id="auth-error"></div>
+    <div class="auth-msg ok" id="auth-success"></div>
+    <form id="login-form" onsubmit="doLogin();return false">
+      <div class="form-group"><label>Email</label><input id="login-email" type="email" name="username" autocomplete="username" placeholder="you@example.com"></div>
+      <div class="form-group"><label>Password</label><input id="login-password" type="password" autocomplete="current-password" placeholder="••••••••"></div>
+      <button class="btn btn-primary btn-full" type="submit" id="login-btn"><i class="ti ti-login"></i> Sign In</button>
+      <div style="text-align:center;margin-top:.9rem"><button type="button" class="btn btn-ghost btn-sm" onclick="doResetPassword()">Forgot password?</button></div>
+    </form>
+    <form id="signup-form" onsubmit="doSignup();return false" style="display:none">
+      <div class="form-group"><label>Email</label><input id="signup-email" type="email" name="username" autocomplete="username" placeholder="you@example.com" disabled></div>
+      <div class="form-group">
+        <label>Password</label>
+        <input id="signup-password" type="password" autocomplete="new-password" placeholder="Minimum 8 characters" disabled>
+        <div style="display:flex;justify-content:space-between;gap:1rem;margin-top:.45rem">
+          <button type="button" class="btn btn-ghost btn-sm" style="padding:0;color:var(--accent)" onclick="suggestStrongPassword()"><i class="ti ti-key"></i> Suggest strong password</button>
+          <button type="button" class="btn btn-ghost btn-sm" style="padding:0" id="signup-pw-toggle" onclick="toggleSignupPw()">Show</button>
+        </div>
+        <div class="hint" id="signup-pw-hint" style="display:none">Save this password in your notes or password manager — you'll need it to sign in.</div>
+      </div>
+      <div class="form-group"><label>Your name</label><input id="signup-name" type="text" autocomplete="name" placeholder="First name" disabled></div>
+      <button class="btn btn-primary btn-full" type="submit" id="signup-btn"><i class="ti ti-user-plus"></i> Create Account</button>
+    </form>
+  </div>
+</div>
+
+<!-- APP -->
+<div class="app" id="app">
+  <nav class="sidebar">
+    <div class="sidebar-logo" onclick="showPage('home')" role="button" tabindex="0">
+      <svg width="30" height="30" viewBox="0 0 100 100"><use href="#gc-logo"/></svg>
+      <div>
+        <div class="serif" style="font-size:16px;line-height:1.1">Grading</div>
+        <span class="mono" id="side-user" style="font-size:9.5px;color:var(--text3)">Calendar</span>
+      </div>
+    </div>
+    <div class="sidebar-nav">
+      <div class="nav-item active" role="button" tabindex="0" data-page="home" onclick="showPage('home')"><i class="ti ti-layout-dashboard"></i><span>Home</span></div>
+      <div class="nav-item" role="button" tabindex="0" data-page="calendar" onclick="showPage('calendar')"><i class="ti ti-calendar-month"></i><span>Calendar</span></div>
+      <div class="nav-item" role="button" tabindex="0" data-page="work" onclick="showPage('work')"><i class="ti ti-checklist"></i><span>Grading</span></div>
+      <div class="nav-item" role="button" tabindex="0" data-page="teachers" onclick="showPage('teachers')"><i class="ti ti-users"></i><span>Teachers</span></div>
+      <div class="nav-item nav-mobile-settings" role="button" tabindex="0" data-page="settings" onclick="showPage('settings')"><i class="ti ti-settings"></i><span>Settings</span></div>
+    </div>
+    <div style="margin-top:auto" class="sidebar-bottom">
+      <div class="nav-item" role="button" tabindex="0" data-page="settings" onclick="showPage('settings')"><i class="ti ti-settings"></i><span>Settings</span></div>
+      <div class="nav-item" role="button" tabindex="0" onclick="doLogout()"><i class="ti ti-logout"></i><span>Sign Out</span></div>
+    </div>
+  </nav>
+
+  <div class="main">
+    <div class="topbar">
+      <div>
+        <div class="topbar-crumb" id="topbar-crumb">Overview</div>
+        <div class="topbar-title" id="topbar-title">Home</div>
+      </div>
+      <div class="topbar-right">
+        <div id="topbar-actions" style="display:flex;gap:.5rem"></div>
+        <button class="icon-btn" onclick="toggleTheme()" title="Switch theme" aria-label="Switch theme"><i class="ti ti-sun-moon" id="theme-ico"></i></button>
+      </div>
+    </div>
+
+    <div class="content" role="main">
+
+      <!-- HOME -->
+      <div id="page-home" class="page active">
+        <div class="page-max">
+          <div class="stat-grid" id="home-stats"></div>
+          <div class="card" id="home-attention-card">
+            <div class="card-head"><div class="card-title">Needs attention</div><div class="card-sub" id="home-attention-sub"></div></div>
+            <div id="home-attention"></div>
+          </div>
+          <div class="card">
+            <div class="card-head">
+              <div class="card-title">Next 14 days</div>
+              <button class="btn btn-sm" onclick="openAssignment(null)"><i class="ti ti-plus"></i> Add</button>
+            </div>
+            <div id="home-upcoming"></div>
+          </div>
+          <div class="card" id="home-teachers-card">
+            <div class="card-head"><div class="card-title">Workload by teacher</div><div class="card-sub">open batches</div></div>
+            <div id="home-teachers"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- CALENDAR -->
+      <div id="page-calendar" class="page">
+        <div class="page-max">
+          <div class="card">
+            <div class="cal-head">
+              <button class="icon-btn" onclick="calShift(-1)" aria-label="Previous month"><i class="ti ti-chevron-left"></i></button>
+              <div style="text-align:center">
+                <div class="cal-month" id="cal-month"></div>
+                <button class="btn btn-ghost btn-sm" onclick="calToday()" style="padding:.1rem .4rem">Today</button>
+              </div>
+              <button class="icon-btn" onclick="calShift(1)" aria-label="Next month"><i class="ti ti-chevron-right"></i></button>
+            </div>
+            <div class="cal-grid" id="cal-weekdays"></div>
+            <div class="cal-grid" id="cal-grid" style="margin-top:4px"></div>
+          </div>
+          <div class="card">
+            <div class="card-head">
+              <div class="card-title" id="cal-day-title">Select a day</div>
+              <button class="btn btn-sm" onclick="openAssignment(null, calState.sel)"><i class="ti ti-plus"></i> Add</button>
+            </div>
+            <div id="cal-day-list"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- GRADING LIST -->
+      <div id="page-work" class="page">
+        <div class="page-max">
+          <div style="display:flex;gap:.6rem;flex-wrap:wrap;align-items:center;margin-bottom:.9rem">
+            <div class="seg" id="work-filters">
+              <button class="active" data-f="open" onclick="setWorkFilter('open')">To do</button>
+              <button data-f="overdue" onclick="setWorkFilter('overdue')">Overdue</button>
+              <button data-f="doing" onclick="setWorkFilter('doing')">Started</button>
+              <button data-f="done" onclick="setWorkFilter('done')">Done</button>
+              <button data-f="all" onclick="setWorkFilter('all')">All</button>
+            </div>
+            <select id="work-teacher" onchange="renderWork()" style="width:auto;min-width:150px;flex:1;max-width:260px"></select>
+          </div>
+          <div class="form-group"><input id="work-search" type="search" placeholder="Search title, class or notes…" oninput="renderWork()"></div>
+          <div id="work-list"></div>
+        </div>
+      </div>
+
+      <!-- TEACHERS -->
+      <div id="page-teachers" class="page">
+        <div class="page-max">
+          <div id="teachers-list"></div>
+        </div>
+      </div>
+
+      <!-- SETTINGS -->
+      <div id="page-settings" class="page">
+        <div class="page-max" style="max-width:620px">
+          <div class="card">
+            <div class="card-head"><div class="card-title">Your details</div></div>
+            <div class="form-group"><label>Name</label><input id="set-name" type="text" placeholder="Your name"></div>
+            <div class="form-group">
+              <label>Default minutes per item</label>
+              <input id="set-minutes" type="number" min="0" step="0.5" inputmode="decimal" placeholder="3">
+              <div class="hint">Used to estimate how long a stack will take. New batches start with this; you can change it per batch.</div>
+            </div>
+            <button class="btn btn-primary" onclick="saveSettings(this)"><i class="ti ti-check"></i> Save</button>
+          </div>
+          <div class="card">
+            <div class="card-head"><div class="card-title">Appearance</div></div>
+            <div class="seg">
+              <button id="theme-dark" onclick="setTheme('dark')">Dark</button>
+              <button id="theme-light" onclick="setTheme('light')">Light</button>
+            </div>
+          </div>
+          <div class="card">
+            <div class="card-head"><div class="card-title">Account</div></div>
+            <div style="font-size:13px;color:var(--text2);margin-bottom:.9rem">Signed in as <strong id="set-email" style="color:var(--text)"></strong></div>
+            <div style="display:flex;gap:.6rem;flex-wrap:wrap">
+              <button class="btn" onclick="changePassword()"><i class="ti ti-key"></i> Change password</button>
+              <button class="btn btn-danger" onclick="doLogout()"><i class="ti ti-logout"></i> Sign out</button>
+            </div>
+          </div>
+          <div class="card">
+            <div class="card-head"><div class="card-title">About</div></div>
+            <div style="display:flex;justify-content:space-between;font-size:13px;color:var(--text2);margin-bottom:.35rem"><span>Installed version</span><span class="mono" id="about-installed" style="color:var(--text)">—</span></div>
+            <div style="display:flex;justify-content:space-between;font-size:13px;color:var(--text2);margin-bottom:.7rem"><span>Latest version</span><span class="mono" id="about-latest" style="color:var(--text)">—</span></div>
+            <div style="font-size:12.5px;color:var(--text3);margin-bottom:.9rem" id="about-status"></div>
+            <div style="display:flex;gap:.6rem;flex-wrap:wrap">
+              <button class="btn btn-sm" onclick="checkForUpdateNow(this)"><i class="ti ti-refresh"></i> Check for updates</button>
+              <button class="btn btn-sm btn-primary" id="about-update-btn" onclick="doUpdate()" style="display:none"><i class="ti ti-download"></i> Update now</button>
+            </div>
+          </div>
+          <div class="card" id="conn-card">
+            <div class="card-head"><div class="card-title">Database</div></div>
+            <div style="font-size:13px;color:var(--text2);margin-bottom:.9rem">Connected to <span class="mono" id="set-project" style="color:var(--text);word-break:break-all"></span></div>
+            <button class="btn btn-sm btn-danger" onclick="disconnectProject()"><i class="ti ti-plug-off"></i> Disconnect this device</button>
+            <div class="hint">Signs you out and forgets the project on this device only. Your data stays in Supabase.</div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<!-- ASSIGNMENT MODAL -->
+<div class="modal-overlay" id="modal-assignment" onclick="if(event.target===this)closeModal('modal-assignment')">
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="asg-title">
+    <div class="modal-head">
+      <div class="modal-title" id="asg-title">New grading batch</div>
+      <button class="icon-btn" onclick="closeModal('modal-assignment')" aria-label="Close"><i class="ti ti-x"></i></button>
+    </div>
+    <div class="form-group">
+      <label>Teacher</label>
+      <select id="asg-teacher"></select>
+      <div class="hint"><button class="btn btn-ghost btn-sm" style="padding:0;color:var(--accent)" onclick="openTeacher(null, true)"><i class="ti ti-plus"></i> Add a teacher</button></div>
+    </div>
+    <div class="form-group"><label>What are you grading?</label><input id="asg-name" type="text" placeholder="e.g. Unit 4 essays"></div>
+    <div class="form-row">
+      <div class="form-group"><label>Class / period</label><input id="asg-course" type="text" placeholder="e.g. Period 3"></div>
+      <div class="form-group"><label>Priority</label>
+        <select id="asg-priority"><option value="normal">Normal</option><option value="high">High</option><option value="low">Low</option></select>
+      </div>
+    </div>
+    <div class="form-row keep2">
+      <div class="form-group"><label>Due date</label><input id="asg-due" type="date"></div>
+      <div class="form-group"><label>Due time <span style="text-transform:none;letter-spacing:0;font-weight:400">(optional)</span></label><input id="asg-time" type="time"></div>
+    </div>
+    <div class="form-row keep2">
+      <div class="form-group"><label>Items to grade</label><input id="asg-total" type="number" min="0" step="1" inputmode="numeric" placeholder="0"></div>
+      <div class="form-group"><label>Already graded</label><input id="asg-done" type="number" min="0" step="1" inputmode="numeric" placeholder="0"></div>
+    </div>
+    <div class="form-row keep2">
+      <div class="form-group"><label>Minutes per item</label><input id="asg-mins" type="number" min="0" step="0.5" inputmode="decimal" placeholder="3"></div>
+      <div class="form-group"><label>Status</label>
+        <select id="asg-status"><option value="todo">Not started</option><option value="doing">In progress</option><option value="done">Done</option></select>
+      </div>
+    </div>
+    <div class="hint" id="asg-estimate" style="margin:-.4rem 0 .9rem"></div>
+    <div class="form-group"><label>Notes</label><textarea id="asg-notes" placeholder="Rubric reminders, where the stack is, anything else…"></textarea></div>
+    <div class="modal-actions">
+      <button class="btn" onclick="closeModal('modal-assignment')">Cancel</button>
+      <button class="btn btn-primary" onclick="saveAssignment(this)"><i class="ti ti-check"></i> Save</button>
+    </div>
+    <button class="btn btn-danger btn-full" id="asg-delete" onclick="deleteAssignment()" style="margin-top:.6rem"><i class="ti ti-trash"></i> Delete batch</button>
+  </div>
+</div>
+
+<!-- TEACHER MODAL -->
+<div class="modal-overlay" id="modal-teacher" onclick="if(event.target===this)closeModal('modal-teacher')">
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="tch-title">
+    <div class="modal-head">
+      <div class="modal-title" id="tch-title">New teacher</div>
+      <button class="icon-btn" onclick="closeModal('modal-teacher')" aria-label="Close"><i class="ti ti-x"></i></button>
+    </div>
+    <div class="form-group"><label>Name</label><input id="tch-name" type="text" placeholder="e.g. Mrs. Alvarez"></div>
+    <div class="form-row">
+      <div class="form-group"><label>School</label><input id="tch-school" type="text" placeholder="Optional"></div>
+      <div class="form-group"><label>Subject</label><input id="tch-subject" type="text" placeholder="Optional"></div>
+    </div>
+    <div class="form-row">
+      <div class="form-group"><label>Email</label><input id="tch-email" type="email" autocapitalize="off" placeholder="Optional"></div>
+      <div class="form-group"><label>Phone</label><input id="tch-phone" type="tel" placeholder="Optional"></div>
+    </div>
+    <div class="form-group">
+      <label>Calendar colour</label>
+      <div class="swatches" id="tch-colors"></div>
+    </div>
+    <div class="form-group"><label>Notes</label><textarea id="tch-notes" placeholder="Preferences, turnaround expectations, pay rate…"></textarea></div>
+    <label style="display:flex;align-items:center;gap:.55rem;text-transform:none;letter-spacing:0;font-family:inherit;font-size:13px;font-weight:600;color:var(--text2);cursor:pointer;margin-bottom:.4rem">
+      <input type="checkbox" id="tch-archived"> Archived (hide from pickers)
+    </label>
+    <div class="modal-actions">
+      <button class="btn" onclick="closeModal('modal-teacher')">Cancel</button>
+      <button class="btn btn-primary" onclick="saveTeacher(this)"><i class="ti ti-check"></i> Save</button>
+    </div>
+    <button class="btn btn-danger btn-full" id="tch-delete" onclick="deleteTeacher()" style="margin-top:.6rem"><i class="ti ti-trash"></i> Delete teacher</button>
+  </div>
+</div>
+
+<!-- CONFIRM MODAL -->
+<div class="modal-overlay" id="modal-confirm" onclick="if(event.target===this)confirmResolve(false)">
+  <div class="modal" style="max-width:400px" role="dialog" aria-modal="true">
+    <div class="modal-title" id="confirm-title" style="margin-bottom:.6rem">Are you sure?</div>
+    <div id="confirm-text" style="font-size:13.5px;color:var(--text2);line-height:1.55"></div>
+    <div class="modal-actions">
+      <button class="btn" onclick="confirmResolve(false)">Cancel</button>
+      <button class="btn btn-danger" id="confirm-ok" onclick="confirmResolve(true)">Delete</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<script>
+/* ============================================================================
+   Grading Calendar — single-file app.
+   Sections below, in order:
+     1. connection + boot config      6. calendar
+     2. helpers                       7. grading list
+     3. auth                          8. teachers
+     4. data loading                  9. settings
+     5. home                         10. update check + PWA
+   ========================================================================== */
+
+// ── 1. CONNECTION ───────────────────────────────────────────────────────────
+// Filled in at deploy time once the Supabase project exists. While they are
+// empty the app shows its own setup screen and stores what the user pastes in
+// localStorage, so a fresh install is usable without editing this file. The
+// anon key is designed to be public — RLS is what protects the rows.
+const BUILTIN_SUPABASE_URL = '';
+const BUILTIN_SUPABASE_KEY = '';
+
+const CONN_KEY = 'gc-conn';
+function savedConn() {
+  try { const v = JSON.parse(localStorage.getItem(CONN_KEY) || 'null'); return (v && v.url && v.key) ? v : null; }
+  catch (e) { return null; }
+}
+const conn = BUILTIN_SUPABASE_URL ? {url: BUILTIN_SUPABASE_URL, key: BUILTIN_SUPABASE_KEY} : savedConn();
+const sb = conn ? supabase.createClient(conn.url, conn.key) : null;
+
+// The exact SQL the setup screen shows. Kept here (not only in schema.sql) so a
+// user who never opens the repo can still set the database up from the app.
+const SETUP_SQL = `-- Grading Calendar — run once in the Supabase SQL Editor.
+create extension if not exists pgcrypto;
+
+create table if not exists profiles (
+  id uuid primary key references auth.users on delete cascade,
+  name text,
+  default_minutes numeric,
+  created_at timestamptz default now()
+);
+
+create table if not exists teachers (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references auth.users on delete cascade,
+  name text not null,
+  school text, subject text, email text, phone text,
+  color text, notes text,
+  archived boolean default false,
+  created_at timestamptz default now()
+);
+create index if not exists teachers_user_id_idx on teachers (user_id);
+
+create table if not exists assignments (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references auth.users on delete cascade,
+  teacher_id uuid references teachers(id) on delete cascade,
+  name text not null,
+  course text,
+  due_date date not null,
+  due_time time,
+  total_items integer default 0,
+  done_items integer default 0,
+  minutes_per_item numeric,
+  status text default 'todo',        -- 'todo' | 'doing' | 'done'
+  priority text default 'normal',    -- 'low' | 'normal' | 'high'
+  notes text,
+  completed_at timestamptz,
+  created_at timestamptz default now()
+);
+create index if not exists assignments_user_id_idx on assignments (user_id);
+create index if not exists assignments_due_idx on assignments (user_id, due_date);
+
+-- Row level security: every row is readable/writable only by the account that
+-- owns it. This is what makes publishing the anon key safe.
+alter table profiles enable row level security;
+alter table teachers enable row level security;
+alter table assignments enable row level security;
+
+drop policy if exists profiles_own on profiles;
+create policy profiles_own on profiles for all
+  using (auth.uid() = id) with check (auth.uid() = id);
+
+drop policy if exists teachers_own on teachers;
+create policy teachers_own on teachers for all
+  using (auth.uid() = user_id) with check (auth.uid() = user_id);
+
+drop policy if exists assignments_own on assignments;
+create policy assignments_own on assignments for all
+  using (auth.uid() = user_id) with check (auth.uid() = user_id);`;
+
+// ── STATE ───────────────────────────────────────────────────────────────────
+let currentUser = null;
+let profile = {};
+let cache = {teachers: [], assignments: []};
+let currentPage = 'home';
+
+const TEACHER_COLORS = ['#10b981','#3b82f6','#a855f7','#f59e0b','#ef4444','#06b6d4','#ec4899','#84cc16','#f97316','#8b5cf6'];
+const DEFAULT_MINUTES = 3;
+
+// ── 2. HELPERS ──────────────────────────────────────────────────────────────
+
+// A clock instant -> the LOCAL calendar date as 'YYYY-MM-DD'. Never
+// toISOString(): that formats in UTC, so west of Greenwich every evening reads
+// as tomorrow — which would make tonight's batch "overdue" and land it on the
+// wrong calendar square.
+function ymd(d) { const p = n => String(n).padStart(2, '0'); return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`; }
+function today() { return ymd(new Date()); }
+// Parse a date-only string at LOCAL noon, so getMonth()/getDate() can't roll
+// back a day in negative-UTC timezones. Same bug as above, from the other side.
+function parseDate(s) { return s ? new Date(s + 'T12:00:00') : new Date(NaN); }
+function addDays(s, n) { const d = parseDate(s); d.setDate(d.getDate() + n); return ymd(d); }
+// Whole days from a to b (both 'YYYY-MM-DD'). Uses noon anchors, so a DST
+// change inside the span can't round the difference to 0.9 or 1.1 days.
+function daysBetween(a, b) { return Math.round((parseDate(b) - parseDate(a)) / 86400000); }
+
+function fmtDate(s) {
+  if (!s) return '—';
+  const d = parseDate(s), n = today();
+  if (s === n) return 'Today';
+  if (s === addDays(n, 1)) return 'Tomorrow';
+  if (s === addDays(n, -1)) return 'Yesterday';
+  const sameYear = d.getFullYear() === new Date().getFullYear();
+  return d.toLocaleDateString('en-US', sameYear ? {month: 'short', day: 'numeric'} : {month: 'short', day: 'numeric', year: 'numeric'});
+}
+function fmtDayLong(s) {
+  return parseDate(s).toLocaleDateString('en-US', {weekday: 'long', month: 'long', day: 'numeric'});
+}
+function fmtTime(t) {
+  if (!t) return '';
+  const p = String(t).slice(0, 5).split(':');
+  let H = parseInt(p[0], 10); const M = p[1] || '00';
+  if (isNaN(H)) return '';
+  const ap = H < 12 ? 'AM' : 'PM'; let h = H % 12; if (h === 0) h = 12;
+  return h + ':' + M + ' ' + ap;
+}
+// Minutes -> "1h 20m". Rounds to whole minutes; anything under a minute is "—".
+function fmtDuration(mins) {
+  const m = Math.round(Number(mins) || 0);
+  if (m <= 0) return '—';
+  if (m < 60) return m + 'm';
+  const h = Math.floor(m / 60), r = m % 60;
+  return r ? `${h}h ${r}m` : `${h}h`;
+}
+function esc(s) {
+  return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'}[c]));
+}
+function lsGet(k, d = null) { try { const v = localStorage.getItem(k); return v === null ? d : v; } catch (e) { return d; } }
+function lsSet(k, v) { try { localStorage.setItem(k, v); } catch (e) {} }
+function lsRemove(k) { try { localStorage.removeItem(k); } catch (e) {} }
+
+let _toastTimer = null;
+function showToast(msg, type = '') {
+  const t = document.getElementById('toast');
+  // Politeness BEFORE the text, so an error interrupts and a confirmation waits.
+  t.setAttribute('aria-live', type === 'error' ? 'assertive' : 'polite');
+  t.textContent = msg;
+  t.className = 'toast show ' + type;
+  if (_toastTimer) clearTimeout(_toastTimer);
+  _toastTimer = setTimeout(() => { t.className = 'toast'; _toastTimer = null; }, 3000);
+}
+
+function openModal(id) { document.getElementById(id).classList.add('open'); }
+function closeModal(id) { document.getElementById(id).classList.remove('open'); }
+document.addEventListener('keydown', e => {
+  if (e.key !== 'Escape') return;
+  const open = document.querySelector('.modal-overlay.open');
+  if (!open) return;
+  if (open.id === 'modal-confirm') confirmResolve(false); else open.classList.remove('open');
+});
+
+// Promise-based confirm. EVERY dismissal route must settle the promise, or the
+// caller hangs forever holding a half-finished delete.
+let _confirmResolve = null;
+function askConfirm(title, text, okLabel = 'Delete') {
+  document.getElementById('confirm-title').textContent = title;
+  document.getElementById('confirm-text').textContent = text;
+  document.getElementById('confirm-ok').textContent = okLabel;
+  openModal('modal-confirm');
+  return new Promise(res => { _confirmResolve = res; });
+}
+function confirmResolve(v) {
+  closeModal('modal-confirm');
+  const r = _confirmResolve; _confirmResolve = null;
+  if (r) r(v);
+}
+
+// ── MODEL HELPERS ───────────────────────────────────────────────────────────
+function teacherById(id) { return cache.teachers.find(t => t.id === id) || null; }
+function teacherName(id) { const t = teacherById(id); return t ? t.name : 'No teacher'; }
+function teacherColor(id) { const t = teacherById(id); return (t && t.color) || 'var(--text3)'; }
+function activeTeachers() { return cache.teachers.filter(t => !t.archived); }
+
+function totalItems(a) { return Math.max(0, parseInt(a.total_items, 10) || 0); }
+function doneItems(a) { return Math.max(0, parseInt(a.done_items, 10) || 0); }
+// Items still to grade. Clamped at 0 so an over-count (she graded 31 of 30)
+// can never subtract from the workload totals on Home.
+function remainingItems(a) { return Math.max(0, totalItems(a) - doneItems(a)); }
+function progressPct(a) {
+  const t = totalItems(a);
+  if (!t) return a.status === 'done' ? 100 : 0;
+  return Math.min(100, Math.round((doneItems(a) / t) * 100));
+}
+function minutesPer(a) {
+  const m = parseFloat(a.minutes_per_item);
+  if (!isNaN(m) && m >= 0) return m;
+  const d = parseFloat(profile.default_minutes);
+  return (!isNaN(d) && d >= 0) ? d : DEFAULT_MINUTES;
+}
+// Estimated minutes of work LEFT on a batch (0 once it's done).
+function remainingMinutes(a) {
+  if (effectiveStatus(a) === 'done') return 0;
+  return remainingItems(a) * minutesPer(a);
+}
+
+// Display status. 'done' is explicit and always wins; an unfinished batch whose
+// due date has passed reads as overdue. Everything else shows what's stored.
+function effectiveStatus(a) {
+  if (a.status === 'done') return 'done';
+  if (a.due_date && a.due_date < today()) return 'overdue';
+  return a.status === 'doing' ? 'doing' : 'todo';
+}
+function isOpen(a) { return effectiveStatus(a) !== 'done'; }
+const STATUS_LABEL = {todo: 'Not started', doing: 'In progress', done: 'Done', overdue: 'Overdue'};
+
+// Due date, then time, then priority (high first), then name — so a list is in
+// the order she'd actually work through it.
+const PRIORITY_RANK = {high: 0, normal: 1, low: 2};
+function byDue(a, b) {
+  if (a.due_date !== b.due_date) return (a.due_date || '') < (b.due_date || '') ? -1 : 1;
+  const at = a.due_time || '99:99', bt = b.due_time || '99:99';
+  if (at !== bt) return at < bt ? -1 : 1;
+  const ap = PRIORITY_RANK[a.priority] ?? 1, bp = PRIORITY_RANK[b.priority] ?? 1;
+  if (ap !== bp) return ap - bp;
+  return String(a.name || '').localeCompare(String(b.name || ''));
+}
+function assignmentsOn(date) { return cache.assignments.filter(a => a.due_date === date).sort(byDue); }
+// Open batches due on or before `date`. Overdue work is included on purpose:
+// it's still on her plate today no matter what its due date says.
+function openThrough(date) { return cache.assignments.filter(a => isOpen(a) && a.due_date && a.due_date <= date); }
+
+function dueBadge(a) {
+  const st = effectiveStatus(a);
+  if (st === 'done') return '<span class="badge badge-done"><i class="ti ti-check"></i> Done</span>';
+  const d = daysBetween(today(), a.due_date);
+  if (d < 0) return `<span class="badge badge-overdue">${d === -1 ? '1 day' : Math.abs(d) + ' days'} late</span>`;
+  if (d === 0) return '<span class="badge badge-soon">Due today</span>';
+  if (d <= 2) return `<span class="badge badge-soon">${d === 1 ? 'Tomorrow' : 'In 2 days'}</span>`;
+  return `<span class="badge badge-${st}">${STATUS_LABEL[st]}</span>`;
+}
+
+// ── 3. AUTH ─────────────────────────────────────────────────────────────────
+function switchAuthTab(tab) {
+  document.getElementById('tab-login').classList.toggle('active', tab === 'login');
+  document.getElementById('tab-signup').classList.toggle('active', tab === 'signup');
+  document.getElementById('login-form').style.display = tab === 'login' ? 'block' : 'none';
+  document.getElementById('signup-form').style.display = tab === 'signup' ? 'block' : 'none';
+  // Only ONE credential form may be live at a time: iOS AutoFill scans the DOM
+  // for password fields and fills the FIRST one it finds, so with both present
+  // a generated password lands in the hidden form and the visible box stays empty.
+  document.querySelectorAll('#login-form input').forEach(i => i.disabled = tab !== 'login');
+  document.querySelectorAll('#signup-form input').forEach(i => i.disabled = tab !== 'signup');
+  document.getElementById('auth-error').classList.remove('show');
+  document.getElementById('auth-success').classList.remove('show');
+}
+function showAuthError(m) {
+  const e = document.getElementById('auth-error');
+  e.textContent = m; e.classList.add('show');
+  document.getElementById('auth-success').classList.remove('show');
+}
+function showAuthSuccess(m) {
+  const e = document.getElementById('auth-success');
+  e.textContent = m; e.classList.add('show');
+  document.getElementById('auth-error').classList.remove('show');
+}
+
+// In-app generator: iOS "Fill Strong Password" is unreliable inside a
+// standalone PWA, so this guarantees a strong password is always available.
+// Skips visually ambiguous characters (0/O, 1/l/I).
+function genPassword(len) {
+  const groups = ['abcdefghijkmnpqrstuvwxyz', 'ABCDEFGHJKLMNPQRSTUVWXYZ', '23456789', '!@#$%^&*-_+'];
+  const all = groups.join('');
+  const rnd = n => { const a = new Uint32Array(1); crypto.getRandomValues(a); return a[0] % n; };
+  const chars = groups.map(g => g[rnd(g.length)]);
+  while (chars.length < len) chars.push(all[rnd(all.length)]);
+  for (let i = chars.length - 1; i > 0; i--) { const j = rnd(i + 1); [chars[i], chars[j]] = [chars[j], chars[i]]; }
+  return chars.join('');
+}
+function suggestStrongPassword() {
+  const inp = document.getElementById('signup-password');
+  inp.value = genPassword(16);
+  inp.type = 'text';                                   // reveal so it can be saved
+  document.getElementById('signup-pw-toggle').textContent = 'Hide';
+  document.getElementById('signup-pw-hint').style.display = 'block';
+  showAuthSuccess('Strong password generated — save it before you create the account.');
+}
+function toggleSignupPw() {
+  const inp = document.getElementById('signup-password');
+  const hidden = inp.type === 'password';
+  inp.type = hidden ? 'text' : 'password';
+  document.getElementById('signup-pw-toggle').textContent = hidden ? 'Hide' : 'Show';
+}
+
+async function doLogin() {
+  const email = document.getElementById('login-email').value.trim();
+  const password = document.getElementById('login-password').value;
+  if (!email || !password) { showAuthError('Please enter your email and password.'); return; }
+  const btn = document.getElementById('login-btn');
+  btn.disabled = true; btn.innerHTML = '<span class="spinner"></span> Signing in…';
+  const {error} = await sb.auth.signInWithPassword({email, password});
+  btn.disabled = false; btn.innerHTML = '<i class="ti ti-login"></i> Sign In';
+  if (error) showAuthError(error.message);
+}
+
+async function doSignup() {
+  const email = document.getElementById('signup-email').value.trim();
+  const password = document.getElementById('signup-password').value;
+  const name = document.getElementById('signup-name').value.trim();
+  if (!email || !password) { showAuthError('Please enter an email and password.'); return; }
+  if (password.length < 8) { showAuthError('Password must be at least 8 characters.'); return; }
+  const btn = document.getElementById('signup-btn');
+  btn.disabled = true; btn.innerHTML = '<span class="spinner"></span> Creating account…';
+  const {data, error} = await sb.auth.signUp({email, password});
+  btn.disabled = false; btn.innerHTML = '<i class="ti ti-user-plus"></i> Create Account';
+  if (error) { showAuthError(error.message); return; }
+  // Email confirmation may be on, in which case there's no session yet and the
+  // profile write would be rejected by RLS — stash the name and write it at
+  // first successful login instead.
+  if (name) lsSet('gc-pending-name', name);
+  if (name && data.session && data.user) {
+    await sb.from('profiles').upsert({id: data.user.id, name});
+    lsRemove('gc-pending-name');
+  }
+  switchAuthTab('login');
+  document.getElementById('login-email').value = email;
+  document.getElementById('login-password').value = '';
+  showAuthSuccess('Account created. If Supabase asks you to confirm your email, do that first — then sign in.');
+}
+
+async function doResetPassword() {
+  const email = document.getElementById('login-email').value.trim();
+  if (!email) { showAuthError('Enter your email address above first.'); return; }
+  const {error} = await sb.auth.resetPasswordForEmail(email, {redirectTo: location.href.split('#')[0]});
+  if (error) showAuthError(error.message);
+  else showAuthSuccess('Password reset email sent — check your inbox.');
+}
+
+async function changePassword() {
+  const pw = prompt('New password (at least 8 characters):');
+  if (pw === null) return;
+  if (pw.length < 8) { showToast('Password must be at least 8 characters.', 'error'); return; }
+  const {error} = await sb.auth.updateUser({password: pw});
+  showToast(error ? error.message : 'Password changed.', error ? 'error' : 'success');
+}
+
+async function doLogout() {
+  await sb.auth.signOut();
+  currentUser = null; profile = {};
+  Object.keys(cache).forEach(k => { cache[k] = []; });
+  document.getElementById('app').style.display = 'none';
+  document.getElementById('auth-wrap').style.display = 'flex';
+}
+
+// ── SETUP SCREEN ────────────────────────────────────────────────────────────
+function showSetup() {
+  document.getElementById('setup-sql').textContent = SETUP_SQL;
+  document.getElementById('loading-screen').style.display = 'none';
+  document.getElementById('setup-wrap').style.display = 'flex';
+}
+// A Supabase project URL carries its own project ref (https://<ref>.supabase.co),
+// which is all the dashboard deep links need.
+function projectRef(url) {
+  let u = String(url || '').trim().replace(/\/+$/, '');
+  if (u && !/^https?:\/\//i.test(u)) u = 'https://' + u;   // pasted without the scheme
+  const m = u.match(/^https:\/\/([a-z0-9-]+)\.supabase\.(?:co|in)$/i);
+  return m ? m[1] : null;
+}
+// Point the setup steps at THIS project once the URL is known, so the SQL Editor
+// and the API keys page are one tap away rather than a hunt through the dashboard.
+function setupLinks() {
+  const ref = projectRef(document.getElementById('setup-url').value);
+  const box = document.getElementById('setup-links');
+  if (!ref) { box.style.display = 'none'; return; }
+  const base = 'https://supabase.com/dashboard/project/' + encodeURIComponent(ref);
+  box.style.display = '';
+  box.innerHTML =
+    `<a href="${base}/sql/new" target="_blank" rel="noopener" style="color:var(--accent-text);font-weight:700">Open the SQL Editor</a>` +
+    ' &nbsp;·&nbsp; ' +
+    `<a href="${base}/settings/api" target="_blank" rel="noopener" style="color:var(--accent-text);font-weight:700">Get the anon key</a>`;
+}
+function copySetupSql(btn) {
+  const done = ok => { btn.innerHTML = ok ? '<i class="ti ti-check"></i> Copied' : '<i class="ti ti-x"></i> Select it manually'; setTimeout(() => { btn.innerHTML = '<i class="ti ti-copy"></i> Copy'; }, 2000); };
+  if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(SETUP_SQL).then(() => done(true), () => done(false));
+  else done(false);
+}
+async function doSetup() {
+  const err = document.getElementById('setup-error');
+  const show = m => { err.textContent = m; err.classList.add('show'); };
+  err.classList.remove('show');
+  const typed = document.getElementById('setup-url').value;
+  const key = document.getElementById('setup-key').value.trim();
+  if (!typed.trim() || !key) { show('Paste both the project URL and the anon key.'); return; }
+  const ref = projectRef(typed);
+  if (!ref) { show("That doesn't look like a Supabase project URL. It should look like https://abcdefgh.supabase.co"); return; }
+  // Store the canonical form, whatever shape it was pasted in.
+  const url = 'https://' + ref + '.supabase.co';
+  const btn = document.getElementById('setup-btn');
+  btn.disabled = true; btn.innerHTML = '<span class="spinner"></span> Checking…';
+  try {
+    // Prove the URL + key work AND that the tables exist, before we store them
+    // — otherwise a typo strands the app on a login screen that can never work.
+    const test = supabase.createClient(url, key);
+    const {error} = await test.from('teachers').select('id').limit(1);
+    // "no rows" is success. A missing table means the SQL script hasn't been run.
+    if (error && /does not exist|schema cache|relation/i.test(error.message)) {
+      show('Connected, but the tables are missing — run the database script above in the SQL Editor first.');
+      btn.disabled = false; btn.innerHTML = '<i class="ti ti-plug-connected"></i> Connect';
+      return;
+    }
+    if (error && !/JWT|row-level|permission/i.test(error.message)) {
+      show('Could not connect: ' + error.message);
+      btn.disabled = false; btn.innerHTML = '<i class="ti ti-plug-connected"></i> Connect';
+      return;
+    }
+    lsSet(CONN_KEY, JSON.stringify({url, key}));
+    btn.innerHTML = '<i class="ti ti-check"></i> Connected';
+    location.reload();
+  } catch (e) {
+    show('Could not reach that project. Check the URL and your connection.');
+    btn.disabled = false; btn.innerHTML = '<i class="ti ti-plug-connected"></i> Connect';
+  }
+}
+async function disconnectProject() {
+  const ok = await askConfirm('Disconnect this device?', 'You will be signed out and asked for the project URL and key again next time. Nothing is deleted — your data stays in Supabase.', 'Disconnect');
+  if (!ok) return;
+  try { await sb.auth.signOut(); } catch (e) {}
+  lsRemove(CONN_KEY);
+  location.reload();
+}
+
+// ── 4. DATA ─────────────────────────────────────────────────────────────────
+// Every query is wrapped so one failing table can't blank the whole app (e.g.
+// before the SQL script has been run).
+async function safe(promise, fallback) {
+  try { const {data, error} = await promise; if (error) throw error; return data || fallback; }
+  catch (e) { console.error('load failed:', e && e.message); _loadFailed = true; return fallback; }
+}
+let _loadFailed = false;
+
+// PostgREST caps a response at 1000 rows and returns the truncated set with NO
+// error, so a long-running gradebook would silently lose its oldest history.
+// Page until a short page comes back. `build` must be a factory — each page
+// needs a fresh query builder — and every page is ordered by a unique
+// tiebreaker (id), or rows sharing a due date reshuffle between pages, which
+// duplicates some and drops others.
+const PAGE_ROWS = 1000;
+async function paged(build) {
+  const out = [];
+  for (let from = 0; ; from += PAGE_ROWS) {
+    const rows = await safe(build().range(from, from + PAGE_ROWS - 1), []);
+    out.push(...rows);
+    if (rows.length < PAGE_ROWS) break;
+  }
+  return out;
+}
+
+async function loadAllData() {
+  _loadFailed = false;
+  const uid = currentUser.id;
+  const [prof, teachers, assignments] = await Promise.all([
+    safe(sb.from('profiles').select('*').eq('id', uid).maybeSingle(), null),
+    paged(() => sb.from('teachers').select('*').eq('user_id', uid).order('name').order('id')),
+    paged(() => sb.from('assignments').select('*').eq('user_id', uid).order('due_date').order('id'))
+  ]);
+  profile = prof || {id: uid};
+  cache.teachers = teachers;
+  cache.assignments = assignments;
+
+  // A name captured at signup can't be written until there's a session (RLS),
+  // so it lands here on the first real login.
+  const pending = lsGet('gc-pending-name');
+  if (pending && !profile.name) {
+    profile.name = pending;
+    await safe(sb.from('profiles').upsert({id: uid, name: pending}).select().maybeSingle(), null);
+    lsRemove('gc-pending-name');
+  }
+  if (_loadFailed) showToast("Some data couldn't be loaded — check your connection.", 'error');
+}
+
+// ── NAVIGATION ──────────────────────────────────────────────────────────────
+const PAGE_META = {
+  home:     {title: 'Home',     crumb: 'Overview',   render: renderHome},
+  calendar: {title: 'Calendar', crumb: 'Due dates',  render: renderCalendar},
+  work:     {title: 'Grading',  crumb: 'All batches', render: renderWork},
+  teachers: {title: 'Teachers', crumb: 'Who you grade for', render: renderTeachers},
+  settings: {title: 'Settings', crumb: 'Preferences', render: loadSettings}
+};
+// Top-bar buttons per page. Built here rather than in markup so a page's
+// primary action travels with it.
+const PAGE_ACTIONS = {
+  home:     '<button class="btn btn-sm btn-primary" onclick="openAssignment(null)"><i class="ti ti-plus"></i> Batch</button>',
+  calendar: '<button class="btn btn-sm btn-primary" onclick="openAssignment(null, calState.sel)"><i class="ti ti-plus"></i> Batch</button>',
+  work:     '<button class="btn btn-sm btn-primary" onclick="openAssignment(null)"><i class="ti ti-plus"></i> Batch</button>',
+  teachers: '<button class="btn btn-sm btn-primary" onclick="openTeacher(null)"><i class="ti ti-plus"></i> Teacher</button>',
+  settings: ''
+};
+function showPage(page) {
+  const meta = PAGE_META[page];
+  if (!meta) return;
+  currentPage = page;
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.getElementById('page-' + page).classList.add('active');
+  document.querySelectorAll('.nav-item[data-page]').forEach(n => n.classList.toggle('active', n.dataset.page === page));
+  document.getElementById('topbar-title').textContent = meta.title;
+  document.getElementById('topbar-crumb').textContent = meta.crumb;
+  document.getElementById('topbar-actions').innerHTML = PAGE_ACTIONS[page] || '';
+  document.querySelector('.content').scrollTop = 0;
+  meta.render();
+}
+// Redraw whatever is on screen. Called after every write, so a change made in a
+// modal is reflected on the page underneath it.
+function rerender() {
+  const meta = PAGE_META[currentPage];
+  if (meta) meta.render();
+}
+
+// ── 5. HOME ─────────────────────────────────────────────────────────────────
+function renderHome() {
+  const n = today();
+  const open = cache.assignments.filter(isOpen);
+  const overdue = open.filter(a => a.due_date < n);
+  const week = open.filter(a => a.due_date >= n && a.due_date <= addDays(n, 6));
+  const items = open.reduce((s, a) => s + remainingItems(a), 0);
+  const mins = open.reduce((s, a) => s + remainingMinutes(a), 0);
+
+  document.getElementById('home-stats').innerHTML = `
+    <div class="stat ${overdue.length ? 'red' : ''}">
+      <div class="stat-label">Overdue</div>
+      <div class="stat-value" style="${overdue.length ? 'color:var(--red)' : ''}">${overdue.length}</div>
+      <div class="stat-note">${overdue.length ? 'past the due date' : 'nothing late'}</div>
+    </div>
+    <div class="stat amber">
+      <div class="stat-label">Due this week</div>
+      <div class="stat-value">${week.length}</div>
+      <div class="stat-note">next 7 days</div>
+    </div>
+    <div class="stat blue">
+      <div class="stat-label">Items left</div>
+      <div class="stat-value">${items}</div>
+      <div class="stat-note">across ${open.length} batch${open.length === 1 ? '' : 'es'}</div>
+    </div>
+    <div class="stat">
+      <div class="stat-label">Time left</div>
+      <div class="stat-value">${fmtDuration(mins)}</div>
+      <div class="stat-note">at your usual pace</div>
+    </div>`;
+
+  // Needs attention = late, or landing within two days. Everything else can wait.
+  const soon = open.filter(a => a.due_date <= addDays(n, 2)).sort(byDue);
+  document.getElementById('home-attention-sub').textContent = soon.length ? soon.length + ' to handle' : '';
+  document.getElementById('home-attention').innerHTML = soon.length
+    ? soon.map(rowHTML).join('')
+    : emptyHTML('ti-mood-check', 'All caught up', 'Nothing is late and nothing is due in the next two days.');
+
+  // Upcoming: open work in the next fortnight, grouped by day so it reads like
+  // a plan rather than a list.
+  const upcoming = open.filter(a => a.due_date >= n && a.due_date <= addDays(n, 13)).sort(byDue);
+  const groups = [];
+  for (const a of upcoming) {
+    const g = groups[groups.length - 1];
+    if (g && g.date === a.due_date) g.items.push(a); else groups.push({date: a.due_date, items: [a]});
+  }
+  document.getElementById('home-upcoming').innerHTML = groups.length
+    ? groups.map(g => `
+        <div style="margin-bottom:.9rem">
+          <div class="mono" style="font-size:10.5px;color:var(--text3);text-transform:uppercase;letter-spacing:.8px;margin-bottom:.4rem">
+            ${esc(fmtDate(g.date))} · ${esc(parseDate(g.date).toLocaleDateString('en-US', {weekday: 'long'}))}
+          </div>
+          ${g.items.map(rowHTML).join('')}
+        </div>`).join('')
+    : emptyHTML('ti-calendar-off', 'Nothing scheduled', 'No grading is due in the next two weeks. Add a batch when a stack comes in.');
+
+  renderTeacherWorkload();
+}
+
+function renderTeacherWorkload() {
+  const rows = cache.teachers.map(t => {
+    const open = cache.assignments.filter(a => a.teacher_id === t.id && isOpen(a));
+    return {t, open: open.length, items: open.reduce((s, a) => s + remainingItems(a), 0), mins: open.reduce((s, a) => s + remainingMinutes(a), 0)};
+  }).filter(r => r.open > 0).sort((a, b) => b.items - a.items || b.open - a.open);
+
+  const card = document.getElementById('home-teachers-card');
+  if (!rows.length) {
+    // Nothing outstanding for anyone: hide the card rather than show an empty
+    // one, but keep a prompt when there are no teachers at all yet.
+    if (!cache.teachers.length) {
+      card.style.display = '';
+      document.getElementById('home-teachers').innerHTML = emptyHTML('ti-users', 'No teachers yet', 'Add the teachers you grade for and each one gets its own colour on the calendar.')
+        + '<div style="text-align:center"><button class="btn btn-sm btn-primary" onclick="openTeacher(null)"><i class="ti ti-plus"></i> Add a teacher</button></div>';
+    } else {
+      card.style.display = 'none';
+    }
+    return;
+  }
+  card.style.display = '';
+  const max = Math.max(...rows.map(r => r.items), 1);
+  document.getElementById('home-teachers').innerHTML = rows.map(r => `
+    <div style="margin-bottom:.85rem;cursor:pointer" onclick="openTeacher('${r.t.id}')">
+      <div style="display:flex;align-items:center;gap:.5rem">
+        <span class="dot" style="background:${esc(r.t.color || 'var(--accent)')}"></span>
+        <div style="flex:1;min-width:0;font-size:13.5px;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(r.t.name)}</div>
+        <div class="mono" style="font-size:11.5px;color:var(--text3);white-space:nowrap">${r.items} item${r.items === 1 ? '' : 's'} · ${fmtDuration(r.mins)}</div>
+      </div>
+      <div class="bar"><div class="bar-fill" style="width:${Math.round((r.items / max) * 100)}%;background:${esc(r.t.color || 'var(--accent)')}"></div></div>
+    </div>`).join('');
+}
+
+function emptyHTML(icon, title, text) {
+  return `<div class="empty"><i class="ti ${icon}"></i><div class="empty-title">${esc(title)}</div><div class="empty-text">${esc(text)}</div></div>`;
+}
+
+// One grading batch as a list row. Used by Home, the calendar day panel and the
+// Grading list, so they can never drift apart.
+function rowHTML(a) {
+  const st = effectiveStatus(a);
+  const t = teacherById(a.teacher_id);
+  const total = totalItems(a), done = doneItems(a);
+  const pct = progressPct(a);
+  const meta = [t ? esc(t.name) : 'No teacher', a.course ? esc(a.course) : '', a.due_time ? fmtTime(a.due_time) : '']
+    .filter(Boolean).join(' <span style="opacity:.5">·</span> ');
+  return `
+    <div class="row ${st === 'done' ? 'is-done' : ''} ${st === 'overdue' ? 'is-overdue' : ''}" onclick="openAssignment('${a.id}')" role="button" tabindex="0">
+      <span class="dot" style="background:${esc(teacherColor(a.teacher_id))}"></span>
+      <div class="row-main">
+        <div class="row-title">${a.priority === 'high' && st !== 'done' ? '<i class="ti ti-flag-filled" style="color:var(--amber);font-size:12px"></i> ' : ''}${esc(a.name)}</div>
+        <div class="row-meta">${meta}</div>
+        ${total ? `<div class="bar"><div class="bar-fill ${done >= total ? 'full' : ''}" style="width:${pct}%"></div></div>` : ''}
+      </div>
+      <div class="row-right">
+        <div>
+          <div class="row-due">${esc(fmtDate(a.due_date))}</div>
+          <div style="margin-top:.3rem;text-align:right">${dueBadge(a)}</div>
+          ${total ? `<div class="mono" style="font-size:10.5px;color:var(--text3);text-align:right;margin-top:.25rem">${done}/${total}</div>` : ''}
+        </div>
+      </div>
+    </div>`;
+}
+
+// ── 6. CALENDAR ─────────────────────────────────────────────────────────────
+const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+const calState = {y: new Date().getFullYear(), m: new Date().getMonth(), sel: today()};
+
+// The 42 cells (6 weeks) of a month grid, always starting on a Sunday. Returned
+// as plain 'YYYY-MM-DD' strings so the whole thing is testable without a DOM.
+function monthGrid(y, m) {
+  const first = new Date(y, m, 1);
+  const start = new Date(y, m, 1 - first.getDay());
+  const out = [];
+  for (let i = 0; i < 42; i++) {
+    const d = new Date(start.getFullYear(), start.getMonth(), start.getDate() + i);
+    out.push({date: ymd(d), inMonth: d.getMonth() === m, day: d.getDate()});
+  }
+  return out;
+}
+function calShift(n) {
+  const d = new Date(calState.y, calState.m + n, 1);
+  calState.y = d.getFullYear(); calState.m = d.getMonth();
+  renderCalendar();
+}
+function calToday() {
+  const d = new Date();
+  calState.y = d.getFullYear(); calState.m = d.getMonth(); calState.sel = today();
+  renderCalendar();
+}
+function calSelect(date) {
+  calState.sel = date;
+  const d = parseDate(date);
+  // Tapping a trailing/leading day jumps to that month, the way every calendar
+  // app does — otherwise the selection lands somewhere you can't see.
+  if (d.getMonth() !== calState.m || d.getFullYear() !== calState.y) { calState.y = d.getFullYear(); calState.m = d.getMonth(); }
+  renderCalendar();
+}
+
+function renderCalendar() {
+  const wd = document.getElementById('cal-weekdays');
+  if (!wd.childElementCount) wd.innerHTML = WEEKDAYS.map(d => `<div class="cal-wd">${d}</div>`).join('');
+  document.getElementById('cal-month').textContent =
+    new Date(calState.y, calState.m, 1).toLocaleDateString('en-US', {month: 'long', year: 'numeric'});
+
+  const n = today();
+  document.getElementById('cal-grid').innerHTML = monthGrid(calState.y, calState.m).map(c => {
+    const list = assignmentsOn(c.date);
+    const chips = list.slice(0, 2).map(a => {
+      const st = effectiveStatus(a);
+      const col = (teacherById(a.teacher_id) || {}).color || '#64748b';
+      return `<div class="cal-chip ${st === 'done' ? 'done' : ''}" style="background:${esc(col)}" title="${esc(a.name)}">${esc(a.name)}</div>`;
+    }).join('');
+    const more = list.length > 2 ? `<div class="cal-more">+${list.length - 2}</div>` : '';
+    return `<div class="cal-day ${c.inMonth ? '' : 'other'} ${c.date === n ? 'today' : ''} ${c.date === calState.sel ? 'sel' : ''}"
+                 onclick="calSelect('${c.date}')" role="button" tabindex="0" aria-label="${esc(fmtDayLong(c.date))}, ${list.length} item${list.length === 1 ? '' : 's'}">
+              <div class="cal-num">${c.day}</div>${chips}${more}
+            </div>`;
+  }).join('');
+
+  const list = assignmentsOn(calState.sel);
+  document.getElementById('cal-day-title').textContent = fmtDayLong(calState.sel);
+  document.getElementById('cal-day-list').innerHTML = list.length
+    ? list.map(rowHTML).join('')
+    : emptyHTML('ti-calendar-plus', 'Nothing due', 'Nothing is due on this day. Use Add to put a batch here.');
+}
+
+// ── 7. GRADING LIST ─────────────────────────────────────────────────────────
+let workFilter = 'open';
+function setWorkFilter(f) {
+  workFilter = f;
+  document.querySelectorAll('#work-filters button').forEach(b => b.classList.toggle('active', b.dataset.f === f));
+  renderWork();
+}
+function renderWork() {
+  // Teacher dropdown is rebuilt on every render (teachers can be added from the
+  // batch modal), so keep whatever was selected if it still exists.
+  const sel = document.getElementById('work-teacher');
+  const keep = sel.value;
+  sel.innerHTML = '<option value="">All teachers</option>' +
+    cache.teachers.map(t => `<option value="${esc(t.id)}">${esc(t.name)}${t.archived ? ' (archived)' : ''}</option>`).join('');
+  sel.value = cache.teachers.some(t => t.id === keep) ? keep : '';
+
+  const q = document.getElementById('work-search').value.trim().toLowerCase();
+  let list = cache.assignments.slice();
+  if (sel.value) list = list.filter(a => a.teacher_id === sel.value);
+  if (workFilter === 'open') list = list.filter(isOpen);
+  else if (workFilter === 'overdue') list = list.filter(a => effectiveStatus(a) === 'overdue');
+  else if (workFilter === 'doing') list = list.filter(a => effectiveStatus(a) === 'doing');
+  else if (workFilter === 'done') list = list.filter(a => effectiveStatus(a) === 'done');
+  if (q) list = list.filter(a =>
+    [a.name, a.course, a.notes, teacherName(a.teacher_id)].some(v => String(v || '').toLowerCase().includes(q)));
+
+  // Done work reads newest-first (what did I just finish?); everything else
+  // reads soonest-first (what do I do next?).
+  list.sort(workFilter === 'done' ? (a, b) => byDue(b, a) : byDue);
+
+  const items = list.reduce((s, a) => s + remainingItems(a), 0);
+  const mins = list.reduce((s, a) => s + remainingMinutes(a), 0);
+  const summary = (workFilter !== 'done' && list.length)
+    ? `<div class="mono" style="font-size:11px;color:var(--text3);margin-bottom:.7rem;letter-spacing:.5px">
+         ${list.length} BATCH${list.length === 1 ? '' : 'ES'} · ${items} ITEM${items === 1 ? '' : 'S'} LEFT · ${fmtDuration(mins).toUpperCase()}
+       </div>` : '';
+
+  document.getElementById('work-list').innerHTML = list.length
+    ? summary + list.map(rowHTML).join('')
+    : emptyHTML('ti-checklist',
+        cache.assignments.length ? 'Nothing here' : 'No grading batches yet',
+        cache.assignments.length ? 'Nothing matches this filter. Try another tab or clear the search.'
+                                 : 'Add the first stack you need to grade — who it is for, how many items, and when it is due.');
+}
+
+// ── 8. TEACHERS ─────────────────────────────────────────────────────────────
+function renderTeachers() {
+  if (!cache.teachers.length) {
+    document.getElementById('teachers-list').innerHTML =
+      emptyHTML('ti-users', 'No teachers yet', 'Add each teacher you grade for. Every teacher gets a colour, so the calendar shows at a glance whose work is due.')
+      + '<div style="text-align:center"><button class="btn btn-primary" onclick="openTeacher(null)"><i class="ti ti-plus"></i> Add a teacher</button></div>';
+    return;
+  }
+  // Archived teachers sink to the bottom — they're kept for history, not work.
+  const sorted = cache.teachers.slice().sort((a, b) =>
+    (a.archived ? 1 : 0) - (b.archived ? 1 : 0) || String(a.name).localeCompare(String(b.name)));
+  document.getElementById('teachers-list').innerHTML = '<div class="t-grid">' + sorted.map(t => {
+    const mine = cache.assignments.filter(a => a.teacher_id === t.id);
+    const open = mine.filter(isOpen);
+    const items = open.reduce((s, a) => s + remainingItems(a), 0);
+    const sub = [t.subject, t.school].filter(Boolean).join(' · ');
+    return `
+      <div class="t-card" style="--tc:${esc(t.color || 'var(--accent)')}" onclick="openTeacher('${t.id}')" role="button" tabindex="0">
+        <div style="display:flex;align-items:center;gap:.5rem">
+          <div class="t-name" style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(t.name)}</div>
+          ${t.archived ? '<span class="badge badge-todo">Archived</span>' : ''}
+        </div>
+        ${sub ? `<div class="t-sub">${esc(sub)}</div>` : ''}
+        <div class="t-stats">
+          <div><div class="t-stat-v">${open.length}</div><div class="t-stat-l">Open</div></div>
+          <div><div class="t-stat-v">${items}</div><div class="t-stat-l">Items left</div></div>
+          <div><div class="t-stat-v">${mine.length}</div><div class="t-stat-l">All time</div></div>
+        </div>
+      </div>`;
+  }).join('') + '</div>';
+}
+
+// ── BATCH MODAL ─────────────────────────────────────────────────────────────
+let editingAssignment = null;
+function openAssignment(id, presetDate) {
+  const a = id ? cache.assignments.find(x => x.id === id) : null;
+  editingAssignment = a ? a.id : null;
+  document.getElementById('asg-title').textContent = a ? 'Edit grading batch' : 'New grading batch';
+  document.getElementById('asg-delete').style.display = a ? '' : 'none';
+
+  // Archived teachers stay out of the picker — unless this batch is already on
+  // one, in which case hiding it would silently reassign the batch on save.
+  const opts = activeTeachers();
+  if (a && a.teacher_id && !opts.some(t => t.id === a.teacher_id)) {
+    const t = teacherById(a.teacher_id);
+    if (t) opts.push(t);
+  }
+  const sel = document.getElementById('asg-teacher');
+  sel.innerHTML = '<option value="">— No teacher —</option>' +
+    opts.map(t => `<option value="${esc(t.id)}">${esc(t.name)}</option>`).join('');
+  // A brand-new batch with exactly one teacher on file picks it: that is right
+  // far more often than not, and it's one less tap on a phone.
+  sel.value = a ? (a.teacher_id || '') : (opts.length === 1 ? opts[0].id : '');
+
+  document.getElementById('asg-name').value = a ? (a.name || '') : '';
+  document.getElementById('asg-course').value = a ? (a.course || '') : '';
+  document.getElementById('asg-priority').value = a ? (a.priority || 'normal') : 'normal';
+  document.getElementById('asg-due').value = a ? (a.due_date || '') : (presetDate || today());
+  document.getElementById('asg-time').value = a && a.due_time ? String(a.due_time).slice(0, 5) : '';
+  document.getElementById('asg-total').value = a && a.total_items != null ? a.total_items : '';
+  document.getElementById('asg-done').value = a && a.done_items != null ? a.done_items : '';
+  document.getElementById('asg-mins').value = a && a.minutes_per_item != null ? a.minutes_per_item
+    : (profile.default_minutes != null ? profile.default_minutes : '');
+  document.getElementById('asg-status').value = a ? (a.status || 'todo') : 'todo';
+  document.getElementById('asg-notes').value = a ? (a.notes || '') : '';
+  updateEstimate();
+  openModal('modal-assignment');
+  if (!a) setTimeout(() => document.getElementById('asg-name').focus(), 120);
+}
+
+// Live "how long is this going to take" line under the numbers.
+function updateEstimate() {
+  const total = parseInt(document.getElementById('asg-total').value, 10) || 0;
+  const done = parseInt(document.getElementById('asg-done').value, 10) || 0;
+  const minsRaw = parseFloat(document.getElementById('asg-mins').value);
+  const per = isNaN(minsRaw) ? minutesPer({}) : minsRaw;
+  const left = Math.max(0, total - done);
+  const el = document.getElementById('asg-estimate');
+  el.innerHTML = total
+    ? `${left} of ${total} left · about <strong style="color:var(--text2)">${fmtDuration(left * per)}</strong> at ${per} min each`
+    : 'Add an item count to see a time estimate.';
+}
+['asg-total', 'asg-done', 'asg-mins'].forEach(id => {
+  document.getElementById(id).addEventListener('input', updateEstimate);
+});
+// Marking a batch done from the status picker fills the progress in, so the
+// counts on Home don't keep reporting items she has already finished.
+document.getElementById('asg-status').addEventListener('change', e => {
+  if (e.target.value !== 'done') return;
+  const total = document.getElementById('asg-total').value;
+  const done = document.getElementById('asg-done');
+  if (total && (!done.value || parseInt(done.value, 10) < parseInt(total, 10))) done.value = total;
+  updateEstimate();
+});
+
+async function saveAssignment(btn) {
+  const name = document.getElementById('asg-name').value.trim();
+  const due = document.getElementById('asg-due').value;
+  if (!name) { showToast('Give the batch a name.', 'error'); return; }
+  if (!due) { showToast('Pick a due date.', 'error'); return; }
+
+  const total = parseInt(document.getElementById('asg-total').value, 10);
+  const doneN = parseInt(document.getElementById('asg-done').value, 10);
+  const mins = parseFloat(document.getElementById('asg-mins').value);
+  let status = document.getElementById('asg-status').value;
+  const totalV = isNaN(total) ? 0 : Math.max(0, total);
+  const doneV = isNaN(doneN) ? 0 : Math.max(0, doneN);
+  // Finishing the count IS finishing the batch — otherwise "30 of 30 graded"
+  // would still sit in the overdue list.
+  if (totalV > 0 && doneV >= totalV) status = 'done';
+  else if (status === 'done' && totalV > 0 && doneV < totalV) status = 'doing';
+
+  const row = {
+    user_id: currentUser.id,
+    teacher_id: document.getElementById('asg-teacher').value || null,
+    name,
+    course: document.getElementById('asg-course').value.trim() || null,
+    due_date: due,
+    due_time: document.getElementById('asg-time').value || null,
+    total_items: totalV,
+    done_items: doneV,
+    minutes_per_item: isNaN(mins) ? null : Math.max(0, mins),
+    status,
+    priority: document.getElementById('asg-priority').value,
+    notes: document.getElementById('asg-notes').value.trim() || null,
+    completed_at: status === 'done' ? new Date().toISOString() : null
+  };
+  if (editingAssignment) row.id = editingAssignment;
+
+  btn.disabled = true; const html = btn.innerHTML; btn.innerHTML = '<span class="spinner"></span> Saving…';
+  const {data, error} = await sb.from('assignments').upsert(row).select().single();
+  btn.disabled = false; btn.innerHTML = html;
+  if (error) { showToast(error.message, 'error'); return; }
+
+  const i = cache.assignments.findIndex(x => x.id === data.id);
+  if (i >= 0) cache.assignments[i] = data; else cache.assignments.push(data);
+  closeModal('modal-assignment');
+  rerender();
+  showToast(editingAssignment ? 'Saved.' : 'Batch added.', 'success');
+  editingAssignment = null;
+}
+
+async function deleteAssignment() {
+  if (!editingAssignment) return;
+  const a = cache.assignments.find(x => x.id === editingAssignment);
+  const ok = await askConfirm('Delete this batch?', `"${a ? a.name : 'This batch'}" will be removed. This cannot be undone.`);
+  if (!ok) return;
+  const {error} = await sb.from('assignments').delete().eq('id', editingAssignment);
+  if (error) { showToast(error.message, 'error'); return; }
+  cache.assignments = cache.assignments.filter(x => x.id !== editingAssignment);
+  editingAssignment = null;
+  closeModal('modal-assignment');
+  rerender();
+  showToast('Batch deleted.', 'success');
+}
+
+// ── TEACHER MODAL ───────────────────────────────────────────────────────────
+let editingTeacher = null;
+let _tchColor = TEACHER_COLORS[0];
+// Set when the teacher form was opened from the batch form, so saving can hand
+// control back and select the teacher that was just created.
+let _teacherReturnsToBatch = false;
+
+function renderSwatches() {
+  document.getElementById('tch-colors').innerHTML = TEACHER_COLORS.map(c =>
+    `<button type="button" class="swatch ${c === _tchColor ? 'on' : ''}" style="background:${c}" onclick="pickColor('${c}')" aria-label="Colour ${c}"></button>`).join('');
+}
+function pickColor(c) { _tchColor = c; renderSwatches(); }
+
+function openTeacher(id, fromBatch) {
+  const t = id ? teacherById(id) : null;
+  editingTeacher = t ? t.id : null;
+  _teacherReturnsToBatch = !!fromBatch;
+  document.getElementById('tch-title').textContent = t ? 'Edit teacher' : 'New teacher';
+  document.getElementById('tch-delete').style.display = t ? '' : 'none';
+  document.getElementById('tch-name').value = t ? (t.name || '') : '';
+  document.getElementById('tch-school').value = t ? (t.school || '') : '';
+  document.getElementById('tch-subject').value = t ? (t.subject || '') : '';
+  document.getElementById('tch-email').value = t ? (t.email || '') : '';
+  document.getElementById('tch-phone').value = t ? (t.phone || '') : '';
+  document.getElementById('tch-notes').value = t ? (t.notes || '') : '';
+  document.getElementById('tch-archived').checked = !!(t && t.archived);
+  // New teachers get the first colour nobody is using yet, so two teachers
+  // don't come out the same shade on the calendar by default.
+  _tchColor = t && t.color ? t.color
+    : (TEACHER_COLORS.find(c => !cache.teachers.some(x => x.color === c)) || TEACHER_COLORS[cache.teachers.length % TEACHER_COLORS.length]);
+  renderSwatches();
+  openModal('modal-teacher');
+  if (!t) setTimeout(() => document.getElementById('tch-name').focus(), 120);
+}
+
+async function saveTeacher(btn) {
+  const name = document.getElementById('tch-name').value.trim();
+  if (!name) { showToast("Enter the teacher's name.", 'error'); return; }
+  const row = {
+    user_id: currentUser.id,
+    name,
+    school: document.getElementById('tch-school').value.trim() || null,
+    subject: document.getElementById('tch-subject').value.trim() || null,
+    email: document.getElementById('tch-email').value.trim() || null,
+    phone: document.getElementById('tch-phone').value.trim() || null,
+    color: _tchColor,
+    notes: document.getElementById('tch-notes').value.trim() || null,
+    archived: document.getElementById('tch-archived').checked
+  };
+  if (editingTeacher) row.id = editingTeacher;
+
+  btn.disabled = true; const html = btn.innerHTML; btn.innerHTML = '<span class="spinner"></span> Saving…';
+  const {data, error} = await sb.from('teachers').upsert(row).select().single();
+  btn.disabled = false; btn.innerHTML = html;
+  if (error) { showToast(error.message, 'error'); return; }
+
+  const i = cache.teachers.findIndex(x => x.id === data.id);
+  if (i >= 0) cache.teachers[i] = data; else cache.teachers.push(data);
+  closeModal('modal-teacher');
+
+  if (_teacherReturnsToBatch) {
+    // The batch modal is still open underneath: rebuild its picker in place and
+    // select the new teacher, so nothing typed into that form is lost.
+    _teacherReturnsToBatch = false;
+    const sel = document.getElementById('asg-teacher');
+    const keep = sel.value;
+    sel.innerHTML = '<option value="">— No teacher —</option>' +
+      activeTeachers().map(t => `<option value="${esc(t.id)}">${esc(t.name)}</option>`).join('');
+    sel.value = editingTeacher ? keep : data.id;
+  }
+  editingTeacher = null;
+  rerender();
+  showToast('Teacher saved.', 'success');
+}
+
+async function deleteTeacher() {
+  if (!editingTeacher) return;
+  const t = teacherById(editingTeacher);
+  const n = cache.assignments.filter(a => a.teacher_id === editingTeacher).length;
+  const ok = await askConfirm('Delete this teacher?',
+    n ? `"${t ? t.name : 'This teacher'}" and their ${n} grading batch${n === 1 ? '' : 'es'} will be deleted. To keep the history instead, close this and tick Archived.`
+      : `"${t ? t.name : 'This teacher'}" will be removed.`);
+  if (!ok) return;
+  const {error} = await sb.from('teachers').delete().eq('id', editingTeacher);
+  if (error) { showToast(error.message, 'error'); return; }
+  // The FK is ON DELETE CASCADE, so the batches are already gone server-side —
+  // drop them from the cache too or the lists keep showing rows that no longer exist.
+  cache.assignments = cache.assignments.filter(a => a.teacher_id !== editingTeacher);
+  cache.teachers = cache.teachers.filter(x => x.id !== editingTeacher);
+  editingTeacher = null;
+  closeModal('modal-teacher');
+  rerender();
+  showToast('Teacher deleted.', 'success');
+}
+
+// ── 9. SETTINGS ─────────────────────────────────────────────────────────────
+function loadSettings() {
+  document.getElementById('set-name').value = profile.name || '';
+  document.getElementById('set-minutes').value = profile.default_minutes != null ? profile.default_minutes : '';
+  document.getElementById('set-email').textContent = currentUser ? currentUser.email : '';
+  document.getElementById('set-project').textContent = conn ? conn.url.replace(/^https?:\/\//, '') : '—';
+  // The disconnect card only makes sense for a device-configured connection; a
+  // build with the project compiled in has nothing to forget.
+  document.getElementById('conn-card').style.display = (conn && !BUILTIN_SUPABASE_URL) ? '' : 'none';
+  syncThemeButtons();
+  renderAbout();
+}
+async function saveSettings(btn) {
+  const mins = parseFloat(document.getElementById('set-minutes').value);
+  const row = {
+    id: currentUser.id,
+    name: document.getElementById('set-name').value.trim() || null,
+    default_minutes: isNaN(mins) ? null : Math.max(0, mins)
+  };
+  btn.disabled = true; const html = btn.innerHTML; btn.innerHTML = '<span class="spinner"></span> Saving…';
+  const {data, error} = await sb.from('profiles').upsert(row).select().single();
+  btn.disabled = false; btn.innerHTML = html;
+  if (error) { showToast(error.message, 'error'); return; }
+  profile = data;
+  document.getElementById('side-user').textContent = profile.name || 'Calendar';
+  showToast('Saved.', 'success');
+}
+
+// ── THEME ───────────────────────────────────────────────────────────────────
+function applyTheme(t) {
+  document.documentElement.setAttribute('data-theme', t);
+  const meta = document.querySelector('meta[name="theme-color"]');
+  if (meta) meta.setAttribute('content', t === 'light' ? '#e5ece8' : '#0d1512');
+  const ico = document.getElementById('theme-ico');
+  if (ico) ico.className = t === 'light' ? 'ti ti-moon' : 'ti ti-sun';
+  syncThemeButtons();
+}
+function syncThemeButtons() {
+  const t = lsGet('gc-theme', 'dark');
+  const d = document.getElementById('theme-dark'), l = document.getElementById('theme-light');
+  if (d) d.classList.toggle('active', t !== 'light');
+  if (l) l.classList.toggle('active', t === 'light');
+}
+function setTheme(t) { lsSet('gc-theme', t); applyTheme(t); }
+function toggleTheme() { setTheme(lsGet('gc-theme', 'dark') === 'light' ? 'dark' : 'light'); }
+applyTheme(lsGet('gc-theme', 'dark'));   // before first paint, so there's no flash
+
+// ── 10. UPDATE CHECK ────────────────────────────────────────────────────────
+// Ship index.html + version.json TOGETHER. An app that is already open detects
+// the change on its next check (on load, every 2 minutes, or on foreground) and
+// offers the reload — without the version bump, installed apps never update.
+let serverVersion = null;
+let _updateCheckFailed = false;
+
+async function checkForUpdate() {
+  try {
+    const res = await fetch('version.json?nocache=' + Date.now(), {
+      cache: 'no-store',
+      headers: {'Cache-Control': 'no-cache, no-store, must-revalidate', 'Pragma': 'no-cache'}
+    });
+    if (!res.ok) throw new Error('http ' + res.status);
+    const data = await res.json();
+    if (!data || typeof data.version === 'undefined') throw new Error('bad payload');
+    serverVersion = data.version;
+    _updateCheckFailed = false;
+
+    const installed = lsGet('gc-installed-version');
+    // First ever load: record what's live, don't prompt.
+    if (installed === null) { lsSet('gc-installed-version', String(data.version)); renderAbout(); return; }
+    if (String(data.version) !== String(installed)) {
+      const note = document.getElementById('update-note');
+      if (note) note.textContent = data.note || ('Version ' + data.version);
+      document.getElementById('update-overlay').style.display = 'flex';
+    }
+    renderAbout();
+  } catch (e) { _updateCheckFailed = true; renderAbout(); }
+}
+// Settings → About exists so "why didn't this phone update?" can be answered by
+// looking instead of guessing.
+function renderAbout() {
+  const inst = document.getElementById('about-installed');
+  if (!inst) return;
+  const installed = lsGet('gc-installed-version');
+  inst.textContent = installed === null ? 'unknown' : installed;
+  document.getElementById('about-latest').textContent =
+    serverVersion === null ? (_updateCheckFailed ? 'unreachable' : 'checking…') : String(serverVersion);
+  const behind = serverVersion !== null && installed !== null && String(serverVersion) !== String(installed);
+  document.getElementById('about-update-btn').style.display = behind ? '' : 'none';
+  document.getElementById('about-status').textContent =
+    _updateCheckFailed ? "Couldn't reach the server — you may be offline."
+      : behind ? 'An update is available.'
+      : serverVersion === null ? '' : 'Up to date.';
+}
+async function checkForUpdateNow(btn) {
+  const html = btn.innerHTML;
+  btn.disabled = true; btn.innerHTML = '<span class="spinner"></span> Checking…';
+  _updateCheckFailed = false;
+  await checkForUpdate();
+  btn.disabled = false; btn.innerHTML = html;
+}
+function doUpdate() {
+  const btn = document.getElementById('update-btn');
+  if (btn) btn.innerHTML = '<span class="spinner"></span> Updating…';
+  // Record the version we're moving to first, so the prompt doesn't come back
+  // after the reload.
+  if (serverVersion !== null) lsSet('gc-installed-version', String(serverVersion));
+  const finish = () => location.replace(location.href.split('?')[0].split('#')[0] + '?v=' + Date.now());
+  const tasks = [];
+  if (window.caches && caches.keys) tasks.push(caches.keys().then(keys => Promise.all(keys.map(k => caches.delete(k)))).catch(() => {}));
+  if (navigator.serviceWorker && navigator.serviceWorker.getRegistrations) {
+    tasks.push(navigator.serviceWorker.getRegistrations().then(rs => Promise.all(rs.map(r => r.unregister()))).catch(() => {}));
+  }
+  // Never let a failed cache wipe strand the user on the overlay.
+  Promise.all(tasks).then(finish, finish);
+  setTimeout(finish, 4000);
+}
+
+// ── BOOT ────────────────────────────────────────────────────────────────────
+function showApp() {
+  document.getElementById('loading-screen').style.display = 'none';
+  document.getElementById('auth-wrap').style.display = 'none';
+  document.getElementById('app').style.display = 'flex';
+  document.getElementById('side-user').textContent = profile.name || 'Calendar';
+  calToday();          // land the calendar on the current month/day each launch
+  showPage('home');
+}
+
+async function boot() {
+  // No project configured yet — the setup screen is the whole app.
+  if (!sb) { showSetup(); return; }
+
+  // Safety net: never leave the loading screen up forever, whatever fails.
+  const bail = setTimeout(() => {
+    const ls = document.getElementById('loading-screen');
+    if (ls && ls.style.display !== 'none') {
+      ls.style.display = 'none';
+      document.getElementById('auth-wrap').style.display = 'flex';
+    }
+  }, 8000);
+
+  try {
+    const {data: {session}} = await sb.auth.getSession();
+    if (session) {
+      currentUser = session.user;
+      await loadAllData();
+      showApp();
+    } else {
+      document.getElementById('loading-screen').style.display = 'none';
+      document.getElementById('auth-wrap').style.display = 'flex';
+      switchAuthTab('login');
+    }
+  } catch (e) {
+    console.error('Boot error:', e);
+    document.getElementById('loading-screen').style.display = 'none';
+    document.getElementById('auth-wrap').style.display = 'flex';
+  } finally {
+    clearTimeout(bail);
+  }
+
+  sb.auth.onAuthStateChange((event, session) => {
+    // supabase-js holds its internal auth lock while this callback runs, so any
+    // awaited sb.auth.* call in here deadlocks. Defer the async work.
+    if (event === 'SIGNED_IN' && session) {
+      if (currentUser && currentUser.id === session.user.id && document.getElementById('app').style.display === 'flex') return;
+      currentUser = session.user;
+      setTimeout(async () => {
+        document.getElementById('auth-wrap').style.display = 'none';
+        document.getElementById('loading-screen').style.display = 'flex';
+        await loadAllData();
+        showApp();
+      }, 0);
+    } else if (event === 'SIGNED_OUT') {
+      document.getElementById('app').style.display = 'none';
+      document.getElementById('auth-wrap').style.display = 'flex';
+    }
+  });
+}
+
+// Keyboard/screen-reader parity for the div-based rows and nav items: anything
+// with role=button must also fire on Enter/Space, or the app is mouse-only.
+document.addEventListener('keydown', e => {
+  if (e.key !== 'Enter' && e.key !== ' ') return;
+  const el = e.target;
+  if (!el || el.getAttribute('role') !== 'button' || el.tagName === 'BUTTON') return;
+  e.preventDefault();
+  el.click();
+});
+
+boot();
+checkForUpdate();
+setInterval(checkForUpdate, 120000);
+// Phones freeze background pages, so the interval alone isn't enough — re-check
+// whenever the app comes back to the foreground, however that is delivered.
+document.addEventListener('visibilitychange', () => { if (!document.hidden) checkForUpdate(); });
+window.addEventListener('pageshow', checkForUpdate);
+window.addEventListener('focus', checkForUpdate);
+
+// Register the service worker on every launch. Android only offers a real
+// installable PWA (full-screen, own icon) when a service worker with a fetch
+// handler already controls the page; otherwise "Add to Home Screen" just makes
+// a bookmark. Harmless on iOS.
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => { navigator.serviceWorker.register('sw.js').catch(() => {}); });
+}
+</script>
+</body>
+</html>
