@@ -1,1 +1,1 @@
-{"version":7,"note":"v7: fixes scrolling — the top of every page was cut off and unreachable. Settings moved to the gear in the top bar, and dark/light now lives only in Settings."}
+{"version":8,"note":"v8: rebuilt the bottom tab bar — the active tab is a pill behind the icon now, instead of a filled block pressed against the screen edge."}
