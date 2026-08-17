@@ -7,7 +7,7 @@ teachers at once. It runs as an installable phone PWA. Each stack of grading is 
 *batch* (`assignments` row): a teacher, a class, a due date, an item count, and
 how far through it the user is.
 
-Current version: **2** (see `version.json` — that file is the source of truth).
+Current version: **3** (see `version.json` — that file is the source of truth).
 
 ---
 
@@ -33,11 +33,13 @@ bump.
   numbered `// ── N. NAME ──` banners.
 - **Backend:** Supabase (hosted Postgres + Auth), row-level security on. Three
   tables: `profiles`, `teachers`, `assignments`. Schema in `schema.sql`.
-- **Hosting:** ONE Cloudflare Worker named `grading-calendar` (`wrangler.toml`),
-  assets-only — there is **no server-side code**. It serves `index.html`,
-  `sw.js`, `manifest.json`, `version.json` and the icons via the `[assets]`
-  binding. Auto-deploys on push to `main` via Cloudflare Workers Builds.
-  `.assetsignore` keeps the repo's own files (tests, docs, SQL, config) out.
+- **Hosting:** ONE Cloudflare Worker named `grading-calendar` (`wrangler.toml`,
+  `worker/index.js`). It serves `index.html`, `sw.js`, `manifest.json`,
+  `version.json` and the icons through the `ASSETS` binding, and does exactly
+  one other thing: answers `/config.json` with the Supabase project to use (see
+  below). Auto-deploys on push to `main` via Cloudflare Workers Builds.
+  `.assetsignore` keeps the repo's own files (worker source, tests, docs, SQL,
+  config) out of the served bundle.
 - **Service worker:** `sw.js`. Its `fetch` handler is **network-first with a
   cache fallback** (navigations only): an online launch always fetches fresh
   `index.html`, so the update prompt keeps working and nobody is pinned to a
@@ -52,15 +54,42 @@ CDN can't swap the code that holds the auth session: `@supabase/supabase-js`
 v2.110.1 and the Tabler icon webfont. Fonts (Google): Plus Jakarta Sans (UI),
 JetBrains Mono (numbers/labels), DM Serif Display (wordmark).
 
-### The connection is not necessarily hard-coded
+### Where the Supabase connection comes from
 
-`BUILTIN_SUPABASE_URL` / `BUILTIN_SUPABASE_KEY` at the top of the script are
-empty in this build. While they're empty the app shows **its own setup screen**
-(`#setup-wrap`), which walks the user through creating the project, shows the SQL
-to run, validates what they paste, and stores it in localStorage under `gc-conn`.
-Filling the two constants in makes every install connected out of the box; the
-saved-connection path keeps working either way, and `loadSettings()` hides the
-"Disconnect" card when the project is compiled in (there's nothing to forget).
+`resolveConnection()` answers this, once, in `boot()` — and **`sb` does not exist
+until it has**, so nothing may touch Supabase before boot resolves. Priority:
+
+1. `BUILTIN_SUPABASE_URL` / `BUILTIN_SUPABASE_KEY` compiled into the script
+   (both empty in this build).
+2. **`/config.json` from our own Worker**, which reads the `SUPABASE_URL` and
+   `SUPABASE_ANON_KEY` environment variables. This is the live deployment: the
+   connection is stored once in Cloudflare and every device gets it, so the
+   setup screen never appears on a phone.
+3. `gc-conn` in localStorage — whatever that one device was set up with.
+4. Nothing → the **setup screen** (`#setup-wrap`), which walks the user through
+   creating the project, shows the SQL to run, deep-links to that project's SQL
+   Editor and API keys page once the URL is known, validates what they paste,
+   and stores it under `gc-conn`.
+
+`connSource` records which of those won, and it's the only thing that should
+gate connection UI: `loadSettings()` shows "Disconnect this device" **only** for
+`'device'`, because there is nothing on the phone to forget when the server or
+the build supplies the connection — clearing it would just be re-fetched on the
+next launch.
+
+Two things about the Worker side that are easy to undo by accident:
+
+- **`SUPABASE_URL` / `SUPABASE_ANON_KEY` are NOT declared in `wrangler.toml`.**
+  They're dashboard **Secrets**. A plaintext variable set in the dashboard is
+  overwritten by the next deploy unless the Wrangler config also declares it, so
+  declaring them here would mean every push blanked out the configuration.
+- **`not_found_handling = "none"`.** With `"single-page-application"`, an
+  unmatched path is answered from the assets *without running the Worker*, which
+  would swallow `/config.json`. `worker/index.js` does the index.html fallback
+  itself instead.
+
+`test/build.test.mjs` pins both, plus that the path the client fetches is the
+path the Worker serves.
 
 `doSetup()` **proves the connection before storing it** — a query against
 `teachers`, with a "tables are missing, run the script" branch — because a typo
