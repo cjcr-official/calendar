@@ -1,0 +1,9 @@
+wrangler.toml
+.assetsignore
+.gitignore
+.git/
+.github/
+test/
+*.md
+*.sql
+node_modules/
