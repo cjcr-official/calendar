@@ -1,1 +1,1 @@
-{"version":12,"note":"v12: the app icon now shares its construction with the owner's other installed app — dark tile, calendar page inset in it, green tick — so the two read as one family instead of one dark and one filled."}
+{"version":13,"note":"v13: the icon is now built on the Bookkeeper icon's own measurements — same footprint, same page rounding, same tick — with the accent bar rotated from the book's spine to the calendar's header."}
