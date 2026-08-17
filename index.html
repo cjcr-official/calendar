@@ -448,21 +448,25 @@ input[type=checkbox]{width:auto;margin:0}
 <!-- shared logo mark (matches icon.png) -->
 <svg width="0" height="0" style="position:absolute" aria-hidden="true">
   <symbol id="gc-logo" viewBox="0 0 100 100">
-    <!-- A green calendar page with the tick in its body, on a near-black tile.
-         The construction — dark tile, lighter dark panel inset in it, accent
-         bars, light tick — is deliberately shared with the owner's other
-         installed app, so the two read as one family on the home screen; the
-         image (a calendar, not a ledger) and the hue are what tell them apart.
-         Keep this in step with icon.png and friends: same mark, and the PNGs
-         are full-bleed because iOS and Android apply their own mask, while
-         this inline copy rounds its own corners. -->
-    <defs><linearGradient id="gctile" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#132019"/><stop offset="100%" stop-color="#080e0b"/></linearGradient></defs>
-    <rect x="0" y="0" width="100" height="100" rx="17" fill="url(#gctile)"/>
-    <rect x="33.5" y="19" width="8" height="18" rx="4" fill="#34d399"/>
-    <rect x="58.5" y="19" width="8" height="18" rx="4" fill="#34d399"/>
-    <rect x="20" y="31" width="60" height="50" rx="12" fill="#1c332a"/>
-    <path d="M20 43 h60 v-1 a11 11 0 0 0 -11 -11 h-38 a11 11 0 0 0 -11 11 z" fill="#5ef0a8" opacity=".14"/>
-    <polyline points="34.5,59.5 45.5,70.5 66,50" fill="none" stroke="#5ef0a8" stroke-width="9" stroke-linecap="round" stroke-linejoin="round"/>
+    <!-- A calendar page with the tick in its body. The geometry is taken from
+         the Bookkeeper icon so the two apps read as one set on the home screen:
+         same footprint, same page rounding, and the tick is that icon's tick at
+         its size and weight. Their accent bar is the book's spine down the left
+         edge; here it is rotated to the page's top edge as the calendar header,
+         with two hangers above it — same bar, same area, different image.
+
+         icon.png and friends draw this same mark on a near-black tile, and are
+         full-bleed because iOS and Android apply their own mask. This inline
+         copy drops the tile, exactly as Bookkeeper's #bk-logo does, because the
+         app's own background is already dark. Keep the two in step. -->
+    <defs><linearGradient id="gcband" x1="0" y1="0" x2="1" y2="0"><stop offset="0%" stop-color="#6ee7b7"/><stop offset="100%" stop-color="#34d399"/></linearGradient></defs>
+    <g transform="translate(-28.67 -28.66) scale(1.575)">
+      <rect x="34.75" y="18.2" width="6.5" height="10.8" rx="3.25" fill="url(#gcband)"/>
+      <rect x="58.75" y="18.2" width="6.5" height="10.8" rx="3.25" fill="url(#gcband)"/>
+      <rect x="18.9" y="24" width="62.1" height="57.7" rx="9.45" fill="#17322a" stroke="#2c6b52" stroke-width="0.7"/>
+      <path d="M18.9 33.45 a9.45 9.45 0 0 1 9.45 -9.45 h43.2 a9.45 9.45 0 0 1 9.45 9.45 z" fill="url(#gcband)"/>
+      <polyline points="39.15,58.18 47.25,66.28 62.1,48.78" fill="none" stroke="#10b981" stroke-width="3.38" stroke-linecap="round" stroke-linejoin="round"/>
+    </g>
   </symbol>
 </svg>
 
