@@ -357,7 +357,14 @@ input[type=checkbox]{width:auto;margin:0}
   .app{flex-direction:column-reverse}
   .sidebar{
     width:100%;flex-direction:row;border-right:none;border-top:1px solid var(--border);
-    padding-bottom:env(safe-area-inset-bottom,0px);background:var(--glass);backdrop-filter:blur(14px);
+    /* Solid, not translucent. The bar is a static flex row — content never
+       scrolls underneath it — so the blur bought nothing, while a 72%-opaque
+       near-black over a near-black page made the whole bar disappear: the
+       labels read as floating over dead space instead of sitting in a tab bar.
+       The padding below is iOS's home-indicator strip, which must stay clear of
+       anything tappable; with a solid background it now reads as part of the
+       bar rather than a gap under it. */
+    padding-bottom:env(safe-area-inset-bottom,0px);background:var(--surface);
     position:relative;z-index:500;
   }
   .sidebar-logo,.sidebar-bottom{display:none}
