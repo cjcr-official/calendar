@@ -263,6 +263,18 @@ input[type=checkbox]{width:auto;margin:0}
 .swatch:hover{transform:scale(1.12)}
 .swatch.on{border-color:var(--text);box-shadow:0 0 0 2px var(--bg)}
 
+/* ── first run ── */
+.firstrun{background:linear-gradient(180deg,var(--accent-bg),transparent 55%),var(--surface)}
+.fr-step{display:flex;gap:.85rem;align-items:flex-start;padding:.85rem 0;border-top:1px solid var(--border)}
+.fr-num{
+  width:36px;height:36px;border-radius:11px;flex-shrink:0;display:flex;align-items:center;justify-content:center;
+  background:var(--accent-bg);color:var(--accent-text);font-size:19px;
+}
+.fr-title{font-size:14.5px;font-weight:700;letter-spacing:-.2px}
+.fr-text{font-size:12.5px;color:var(--text3);line-height:1.5;margin:.15rem 0 .6rem}
+.fr-step.done .fr-num{background:var(--green-bg);color:var(--green)}
+.fr-step.done .fr-title{text-decoration:line-through;opacity:.65}
+
 /* ── empty state ── */
 .empty{text-align:center;padding:2.5rem 1rem;color:var(--text3)}
 .empty i{font-size:36px;opacity:.5;display:block;margin-bottom:.6rem}
@@ -523,12 +535,41 @@ input[type=checkbox]{width:auto;margin:0}
       <!-- HOME -->
       <div id="page-home" class="page active">
         <div class="page-max">
+          <!-- Shown INSTEAD of the dashboard until there's something to show.
+               An empty app is the first thing she ever sees, and four blank
+               cards plus a row of zeros tells her nothing and asks nothing. -->
+          <div class="card firstrun" id="home-firstrun" style="display:none">
+            <div style="text-align:center;padding:.5rem 0 1.3rem">
+              <svg width="46" height="46" viewBox="0 0 100 100" style="margin-bottom:.7rem"><use href="#gc-logo"/></svg>
+              <div class="serif" style="font-size:23px;line-height:1.15">Let's get you set up</div>
+              <div style="font-size:13.5px;color:var(--text2);margin-top:.4rem;line-height:1.5;max-width:330px;margin-left:auto;margin-right:auto">
+                Two steps. After that, Home shows what's due, what's late, and how long it'll take.
+              </div>
+            </div>
+            <div class="fr-step" id="fr-step-1">
+              <div class="fr-num"><i class="ti ti-users"></i></div>
+              <div class="fr-body">
+                <div class="fr-title">Add a teacher</div>
+                <div class="fr-text">Everyone you grade for. Each gets their own colour on the calendar.</div>
+                <button class="btn btn-primary btn-sm" onclick="openTeacher(null)"><i class="ti ti-plus"></i> Add a teacher</button>
+              </div>
+            </div>
+            <div class="fr-step" id="fr-step-2">
+              <div class="fr-num"><i class="ti ti-checklist"></i></div>
+              <div class="fr-body">
+                <div class="fr-title">Add a stack of grading</div>
+                <div class="fr-text">What it is, how many items, and when it's due.</div>
+                <button class="btn btn-primary btn-sm" id="fr-batch-btn" onclick="openAssignment(null)"><i class="ti ti-plus"></i> Add a batch</button>
+              </div>
+            </div>
+          </div>
+
           <div class="stat-grid" id="home-stats"></div>
           <div class="card" id="home-attention-card">
             <div class="card-head"><div class="card-title">Needs attention</div><div class="card-sub" id="home-attention-sub"></div></div>
             <div id="home-attention"></div>
           </div>
-          <div class="card">
+          <div class="card" id="home-upcoming-card">
             <div class="card-head">
               <div class="card-title">Next 14 days</div>
               <button class="btn btn-sm" onclick="openAssignment(null)"><i class="ti ti-plus"></i> Add</button>
@@ -1294,7 +1335,24 @@ function rerender() {
 }
 
 // ── 5. HOME ─────────────────────────────────────────────────────────────────
+const HOME_CARDS = ['home-stats', 'home-attention-card', 'home-upcoming-card', 'home-teachers-card'];
+
 function renderHome() {
+  // With no batches yet there is nothing for the dashboard to say, and saying
+  // it in four empty cards is worse than not saying it: the first screen she
+  // ever sees should ask for one thing. Swap the whole dashboard for the setup
+  // card until there's at least one batch.
+  const fresh = !cache.assignments.length;
+  document.getElementById('home-firstrun').style.display = fresh ? '' : 'none';
+  HOME_CARDS.forEach(id => { document.getElementById(id).style.display = fresh ? 'none' : ''; });
+  if (fresh) {
+    // Adding a teacher first is the natural order, but it isn't required —
+    // openAssignment() offers "No teacher". Tick step 1 off once one exists so
+    // the card reflects where she actually is.
+    document.getElementById('fr-step-1').classList.toggle('done', cache.teachers.length > 0);
+    return;
+  }
+
   const n = today();
   const open = cache.assignments.filter(isOpen);
   const overdue = open.filter(a => a.due_date < n);

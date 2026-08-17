@@ -1,1 +1,1 @@
-{"version":4,"note":"v4: adds a Force reload button in Settings, About, for when the app looks stale but the version numbers say it is current."}
+{"version":5,"note":"v5: Home now walks you through the first two steps instead of showing empty cards before there is anything to show."}
