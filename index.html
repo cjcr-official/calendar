@@ -628,7 +628,9 @@ input[type=checkbox]{width:auto;margin:0}
             <div style="display:flex;gap:.6rem;flex-wrap:wrap">
               <button class="btn btn-sm" onclick="checkForUpdateNow(this)"><i class="ti ti-refresh"></i> Check for updates</button>
               <button class="btn btn-sm btn-primary" id="about-update-btn" onclick="doUpdate()" style="display:none"><i class="ti ti-download"></i> Update now</button>
+              <button class="btn btn-sm" onclick="forceReload()"><i class="ti ti-reload"></i> Force reload</button>
             </div>
+            <div class="hint">Force reload throws away everything stored on this device and fetches the app fresh. Use it when the app looks stale even though the versions above match — it always works, whatever the version numbers say.</div>
           </div>
           <div class="card">
             <div class="card-head"><div class="card-title">Database</div></div>
@@ -1883,15 +1885,38 @@ function doUpdate() {
   // Record the version we're moving to first, so the prompt doesn't come back
   // after the reload.
   if (serverVersion !== null) lsSet('gc-installed-version', String(serverVersion));
+  hardReload();
+}
+
+// Throw away every stored copy of the app and fetch it again.
+//
+// This is the escape hatch that does NOT depend on the version numbers
+// agreeing, and that's the point: a phone can end up pinned to a stale build —
+// an old service worker still controlling the page, a cached document, a
+// version stamp written by a build that is no longer what the server serves —
+// and in every one of those states the app cheerfully reports "Up to date"
+// while showing something old. That message is true and useless at the same
+// time, and until now there was nothing the user could do about it from inside
+// the app.
+function hardReload() {
   const finish = () => location.replace(location.href.split('?')[0].split('#')[0] + '?v=' + Date.now());
   const tasks = [];
   if (window.caches && caches.keys) tasks.push(caches.keys().then(keys => Promise.all(keys.map(k => caches.delete(k)))).catch(() => {}));
   if (navigator.serviceWorker && navigator.serviceWorker.getRegistrations) {
     tasks.push(navigator.serviceWorker.getRegistrations().then(rs => Promise.all(rs.map(r => r.unregister()))).catch(() => {}));
   }
-  // Never let a failed cache wipe strand the user on the overlay.
+  // Never let a failed cache wipe strand the user mid-reload.
   Promise.all(tasks).then(finish, finish);
   setTimeout(finish, 4000);
+}
+
+function forceReload() {
+  showToast('Fetching a fresh copy…');
+  // Drop the recorded version as well. Whatever comes back IS the current
+  // build by definition, so re-stamping it from the next check is more
+  // trustworthy than carrying a number written by the build being discarded.
+  lsRemove('gc-installed-version');
+  hardReload();
 }
 
 // ── BOOT ────────────────────────────────────────────────────────────────────
