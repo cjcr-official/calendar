@@ -165,8 +165,13 @@ input[type=checkbox]{width:auto;margin:0}
 .nav-item.active{background:var(--accent-bg);color:var(--accent-text)}
 /* Settings lives in the sidebar's bottom group on desktop and in the bottom bar
    on mobile — two elements, only ever one of them shown. */
-.nav-mobile-settings{display:none}
-.main{flex:1;display:flex;flex-direction:column;min-width:0}
+/* min-height:0 is load-bearing, not tidying. A flex item defaults to
+   min-height:auto, which refuses to shrink below its content — so .content's
+   overflow-y:auto never engaged, the whole .app grew past the viewport, and
+   because the mobile layout is column-reverse the overflow was pinned to the
+   BOTTOM: the top of every page was cut off and completely unreachable. It
+   looked like "scrolling is broken" because nothing scrolled at all. */
+.main{flex:1;display:flex;flex-direction:column;min-width:0;min-height:0}
 .topbar{
   background:var(--bg2);border-bottom:1px solid var(--border);padding:.7rem 1.4rem;
   display:flex;align-items:center;justify-content:space-between;gap:1rem;flex-shrink:0;
@@ -175,7 +180,7 @@ input[type=checkbox]{width:auto;margin:0}
 .topbar-title{font-size:17px;font-weight:700;letter-spacing:-.3px;line-height:1.2}
 .topbar-crumb{font-size:10.5px;color:var(--text3);font-family:'JetBrains Mono',monospace;letter-spacing:.6px;text-transform:uppercase}
 .topbar-right{display:flex;align-items:center;gap:.5rem}
-.content{flex:1;overflow-y:auto;overscroll-behavior:contain;padding:1.3rem 1.4rem 3rem;-webkit-overflow-scrolling:touch}
+.content{flex:1;min-height:0;overflow-y:auto;overscroll-behavior:contain;padding:1.3rem 1.4rem 3rem;-webkit-overflow-scrolling:touch}
 .page{display:none}
 .page.active{display:block}
 .page-max{max-width:1080px;margin:0 auto}
@@ -369,7 +374,6 @@ input[type=checkbox]{width:auto;margin:0}
   }
   .sidebar-logo,.sidebar-bottom{display:none}
   .sidebar-nav{display:flex;flex:1}
-  .nav-mobile-settings{display:flex}
   .nav-item{
     flex:1;flex-direction:column;gap:2px;margin:.3rem .15rem;padding:.4rem .2rem;
     font-size:9.5px;font-weight:700;letter-spacing:.2px;justify-content:center;text-align:center;
@@ -517,7 +521,6 @@ input[type=checkbox]{width:auto;margin:0}
       <div class="nav-item" role="button" tabindex="0" data-page="calendar" onclick="showPage('calendar')"><i class="ti ti-calendar-month"></i><span>Calendar</span></div>
       <div class="nav-item" role="button" tabindex="0" data-page="work" onclick="showPage('work')"><i class="ti ti-checklist"></i><span>Grading</span></div>
       <div class="nav-item" role="button" tabindex="0" data-page="teachers" onclick="showPage('teachers')"><i class="ti ti-users"></i><span>Teachers</span></div>
-      <div class="nav-item nav-mobile-settings" role="button" tabindex="0" data-page="settings" onclick="showPage('settings')"><i class="ti ti-settings"></i><span>Settings</span></div>
     </div>
     <div style="margin-top:auto" class="sidebar-bottom">
       <div class="nav-item" role="button" tabindex="0" data-page="settings" onclick="showPage('settings')"><i class="ti ti-settings"></i><span>Settings</span></div>
@@ -533,7 +536,7 @@ input[type=checkbox]{width:auto;margin:0}
       </div>
       <div class="topbar-right">
         <div id="topbar-actions" style="display:flex;gap:.5rem"></div>
-        <button class="icon-btn" onclick="toggleTheme()" title="Switch theme" aria-label="Switch theme"><i class="ti ti-sun-moon" id="theme-ico"></i></button>
+        <button class="icon-btn" onclick="showPage('settings')" title="Settings" aria-label="Settings"><i class="ti ti-settings"></i></button>
       </div>
     </div>
 
@@ -1877,8 +1880,6 @@ function applyTheme(t) {
   document.documentElement.setAttribute('data-theme', t);
   const meta = document.querySelector('meta[name="theme-color"]');
   if (meta) meta.setAttribute('content', t === 'light' ? '#e5ece8' : '#0d1512');
-  const ico = document.getElementById('theme-ico');
-  if (ico) ico.className = t === 'light' ? 'ti ti-moon' : 'ti ti-sun';
   syncThemeButtons();
 }
 function syncThemeButtons() {
@@ -1888,7 +1889,6 @@ function syncThemeButtons() {
   if (l) l.classList.toggle('active', t === 'light');
 }
 function setTheme(t) { lsSet('gc-theme', t); applyTheme(t); }
-function toggleTheme() { setTheme(lsGet('gc-theme', 'dark') === 'light' ? 'dark' : 'light'); }
 applyTheme(lsGet('gc-theme', 'dark'));   // before first paint, so there's no flash
 
 // ── 10. UPDATE CHECK ────────────────────────────────────────────────────────
