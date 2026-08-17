@@ -12,7 +12,7 @@
 // changed (or pointed at a different project) without touching the app.
 //
 // Set them in the Cloudflare dashboard under
-//   Workers & Pages -> grading-calendar -> Settings -> Variables and Secrets
+//   Workers & Pages -> calendar -> Settings -> Variables and Secrets
 // as SUPABASE_URL and SUPABASE_ANON_KEY. Add them as **Secrets**: a plaintext
 // variable added in the dashboard is wiped by the next `wrangler deploy` unless
 // it is also declared in wrangler.toml, while secrets survive every deploy.

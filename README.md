@@ -39,25 +39,30 @@ personal account. Leave it on if you prefer.
 
 ### 2. Hosting (Cloudflare Workers, free)
 
-The app is static files, so the Worker just serves them. There is no server-side
-code and no secrets to configure.
+The app is static files plus a ~30-line Worker whose only job is to hand the
+browser the Supabase connection (step 3). No build step, no framework.
+
+**The Worker's name in `wrangler.toml` must match the Worker in your dashboard.**
+It's `calendar` here. If you create the Worker under a different name, change
+`name =` to match, or the deploy targets the wrong Worker — or creates a second
+one.
 
 1. Push this repo to GitHub (it already is, if you're reading this there).
 2. In the Cloudflare dashboard go to **Workers & Pages → Create → Workers →
    Import a repository**, and pick this repo.
 3. Cloudflare reads [`wrangler.toml`](wrangler.toml) — the Worker is named
-   `grading-calendar` and serves the repo root as static assets. Leave the build
+   `calendar` and serves the repo root as static assets. Leave the build
    command empty; there is no build step.
 4. Deploy. Every later push to `main` redeploys automatically.
 
-You'll get a `grading-calendar.<your-subdomain>.workers.dev` URL. A custom domain
+You'll get a `calendar.<your-subdomain>.workers.dev` URL. A custom domain
 can be attached later under the Worker's **Domains & Routes**.
 
 ### 3. Store the connection in Cloudflare
 
 Do this once and **every device is connected** — no setup screen, on any phone.
 
-In the Cloudflare dashboard: **Workers & Pages → `grading-calendar` → Settings →
+In the Cloudflare dashboard: **Workers & Pages → `calendar` → Settings →
 Variables and Secrets → Add**. Add two, both as **Secret**:
 
 | Name | Value |
@@ -68,6 +73,18 @@ Variables and Secrets → Add**. Add two, both as **Secret**:
 Deploy (or just push anything) and open the app. The Worker answers
 `/config.json` with those two values, the app reads it at launch, and goes
 straight to the sign-in screen.
+
+**If the Variables section says "Variables cannot be added to a Worker that only
+has static assets"**, the live deployment predates `worker/index.js` — the
+Worker really is assets-only right now. Trigger a deploy from the latest `main`
+and the section becomes available.
+
+To check what the Worker is actually serving, open `/config.json` on the
+deployed URL in a browser:
+
+- `{"configured":false}` → the Worker script is live, the variables aren't set yet.
+- `{"url":"…","key":"…"}` → fully configured; the app will connect on its own.
+- The page HTML, or a 404 → the Worker script isn't deployed yet.
 
 **Add them as Secrets, not plaintext variables.** A plaintext variable added in
 the dashboard is overwritten by the next deploy unless it is also declared in
