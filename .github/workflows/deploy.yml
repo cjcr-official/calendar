@@ -1,0 +1,57 @@
+# Deploy to Cloudflare from GitHub.
+#
+# Cloudflare's own Git integration kept dropping its authorization ("This
+# project is disconnected from your Git account"), which silently turns every
+# push into a no-op: main moves, the app doesn't, and nothing anywhere says so.
+# GitHub already knows about every merge, so it drives the deploy instead and
+# the Cloudflare-side Git link stops mattering.
+#
+# One repository secret is required — Settings -> Secrets and variables ->
+# Actions:
+#   CLOUDFLARE_API_TOKEN   an API token with the "Edit Cloudflare Workers"
+#                          template, created at
+#                          dash.cloudflare.com/profile/api-tokens
+#   CLOUDFLARE_ACCOUNT_ID  optional; only needed if the token can see more than
+#                          one account. It's the hex string in the dashboard URL.
+#
+# Unlike the Supabase anon key, the API token IS a real secret — it can change
+# your Worker. Keep it in GitHub's secrets, never in the repo.
+
+name: Deploy
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:        # lets you re-run a deploy by hand from the Actions tab
+
+permissions:
+  contents: read
+
+# Never let two deploys race. A newer commit wins; an in-flight older one is
+# cancelled rather than landing on top of it.
+concurrency:
+  group: deploy-main
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      # Nothing else gates this deploy, so the suites run first: a red test
+      # fails the job and the broken build never reaches anyone's phone.
+      - name: Test
+        run: |
+          node test/grading.test.mjs
+          node test/build.test.mjs
+
+      - name: Deploy
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}

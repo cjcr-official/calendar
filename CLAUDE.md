@@ -56,9 +56,17 @@ Shipping unverified is the one thing this instruction does not license.
   `worker/index.js`). It serves `index.html`, `sw.js`, `manifest.json`,
   `version.json` and the icons through the `ASSETS` binding, and does exactly
   one other thing: answers `/config.json` with the Supabase project to use (see
-  below). Auto-deploys on push to `main` via Cloudflare Workers Builds.
-  `.assetsignore` keeps the repo's own files (worker source, tests, docs, SQL,
-  config) out of the served bundle.
+  below). `.assetsignore` keeps the repo's own files (worker source, tests,
+  docs, SQL, config) out of the served bundle.
+- **Deploys come from GitHub Actions** (`.github/workflows/deploy.yml`), NOT
+  from Cloudflare's Git integration. That integration kept dropping its
+  authorization ("This project is disconnected from your Git account"), and its
+  failure mode is the worst kind: pushes become silent no-ops, `main` moves, the
+  app doesn't, and nothing anywhere reports it. The workflow runs both suites
+  and then `wrangler deploy` on every push to `main`; it needs the
+  `CLOUDFLARE_API_TOKEN` repository secret. **The suites run before the deploy
+  step on purpose** — nothing else gates what reaches a phone, and
+  `test/build.test.mjs` fails if that order is ever reversed.
 - **Service worker:** `sw.js`. Its `fetch` handler is **network-first with a
   cache fallback** (navigations only): an online launch always fetches fresh
   `index.html`, so the update prompt keeps working and nobody is pinned to a

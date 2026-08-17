@@ -53,7 +53,26 @@ one.
 3. Cloudflare reads [`wrangler.toml`](wrangler.toml) — the Worker is named
    `calendar` and serves the repo root as static assets. Leave the build
    command empty; there is no build step.
-4. Deploy. Every later push to `main` redeploys automatically.
+4. Deploy.
+
+**Deploys run from GitHub Actions, not Cloudflare's Git integration.**
+`.github/workflows/deploy.yml` runs both test suites and then `wrangler deploy`
+on every push to `main`. Add one repository secret — **Settings → Secrets and
+variables → Actions**:
+
+| Secret | Where to get it |
+|---|---|
+| `CLOUDFLARE_API_TOKEN` | [dash.cloudflare.com/profile/api-tokens](https://dash.cloudflare.com/profile/api-tokens) → Create Token → **Edit Cloudflare Workers** template |
+| `CLOUDFLARE_ACCOUNT_ID` | Optional. Only if the token sees more than one account — it's the hex string in your dashboard URL |
+
+This exists because Cloudflare's own Git connection kept dropping its
+authorization ("This project is disconnected from your Git account"), which
+turns every push into a silent no-op: `main` moves and the app doesn't. Driving
+it from GitHub removes that dependency, and gets the tests run as a gate for
+free. You can leave Cloudflare's Git integration disconnected.
+
+Unlike the Supabase anon key, the API token is a **real** secret — it can change
+your Worker. It belongs in GitHub's Actions secrets and nowhere else.
 
 You'll get a `calendar.<your-subdomain>.workers.dev` URL. A custom domain
 can be attached later under the Worker's **Domains & Routes**.
