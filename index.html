@@ -53,6 +53,17 @@
   --sidebar-w:216px;
   --shadow:0 10px 34px rgba(0,0,0,.42);
   --shadow-lg:0 28px 80px rgba(0,0,0,.62);
+  /* How much room to leave under the tab bar for the home indicator. CAPPED,
+     which is the point: the raw inset is whatever the OS feels like reporting,
+     and when it comes back far larger than a home indicator actually needs the
+     bar grows a tall empty apron under the labels that reads as a gap under the
+     app. 34px is the real clearance iOS asks for; anything beyond that is the
+     OS being generous with someone else's layout. clamp() also covers the
+     no-inset case (Android, desktop) with a little breathing room.
+     Every rule that has to line up with the bottom of the bar uses this — the
+     bar's padding, the scroller's reserved space, the toast — so they can't
+     drift apart. */
+  --safe-bottom:clamp(.35rem, env(safe-area-inset-bottom, 0px), 34px);
 }
 /* ── LIGHT ── */
 [data-theme="light"]{
@@ -403,8 +414,6 @@ input[type=checkbox]{width:auto;margin:0}
        The padding below is iOS's home-indicator strip, which must stay clear of
        anything tappable; with a solid background it now reads as part of the
        bar rather than a gap under it. */
-    /* max(), so there is always a little breathing room under the labels even
-       on a device with no home indicator to inset for. */
     /* PINNED TO THE VIEWPORT, not parked at the end of the flex column.
        This is the fix for the strip of dead space under the bar, and it has now
        bitten twice. The bar used to sit at the end of a column-reverse flex
@@ -418,7 +427,7 @@ input[type=checkbox]{width:auto;margin:0}
        layout viewport, and with viewport-fit=cover that IS the whole screen, so
        bottom:0 is the physical bottom of the phone whatever dvh believes. */
     position:fixed;left:0;right:0;bottom:0;
-    padding-bottom:max(env(safe-area-inset-bottom,0px),.35rem);
+    padding-bottom:var(--safe-bottom);
     /* NO background of its own — it inherits --bg2 from the base .sidebar rule,
        and that is the whole point. Every surface the OS paints around the app
        is --bg2: the theme-color meta, the manifest's theme_color and
@@ -455,13 +464,13 @@ input[type=checkbox]{width:auto;margin:0}
   .nav-item.active i{background:var(--accent-bg)}
   /* Clear the tab bar (62px + whatever the device insets) rather than landing
      on top of it. */
-  .toast{bottom:calc(env(safe-area-inset-bottom,0px) + 74px)}
+  .toast{bottom:calc(var(--safe-bottom) + 74px)}
   .topbar{padding:.6rem 1rem;padding-top:calc(.6rem + env(safe-area-inset-top,0px))}
   .topbar-title{font-size:16px}
   /* The bar is out of flow now, so the scroller has to reserve its height —
      62px of tabs plus whatever the device insets — or the last row of every
      list sits under it and can't be reached. */
-  .content{padding:1rem .85rem calc(2rem + 62px + max(env(safe-area-inset-bottom,0px),.35rem))}
+  .content{padding:1rem .85rem calc(2rem + 62px + var(--safe-bottom))}
   .modal-overlay{align-items:flex-end;padding:0}
   .modal{
     max-width:100%;border-radius:var(--radius-lg) var(--radius-lg) 0 0;max-height:92dvh;
@@ -769,6 +778,7 @@ input[type=checkbox]{width:auto;margin:0}
             <div class="card-head"><div class="card-title">About</div></div>
             <div style="display:flex;justify-content:space-between;font-size:13px;color:var(--text2);margin-bottom:.35rem"><span>Installed version</span><span class="mono" id="about-installed" style="color:var(--text)">—</span></div>
             <div style="display:flex;justify-content:space-between;font-size:13px;color:var(--text2);margin-bottom:.7rem"><span>Latest version</span><span class="mono" id="about-latest" style="color:var(--text)">—</span></div>
+            <div style="display:flex;justify-content:space-between;gap:1rem;font-size:13px;color:var(--text2);margin-bottom:.7rem"><span style="flex-shrink:0">Display</span><span class="mono" id="about-display" style="color:var(--text2);font-size:10.5px;text-align:right;word-break:break-all">—</span></div>
             <div style="font-size:12.5px;color:var(--text3);margin-bottom:.9rem" id="about-status"></div>
             <div style="display:flex;gap:.6rem;flex-wrap:wrap">
               <button class="btn btn-sm" onclick="checkForUpdateNow(this)"><i class="ti ti-refresh"></i> Check for updates</button>
@@ -1945,6 +1955,38 @@ async function deleteTeacher() {
 }
 
 // ── 9. SETTINGS ─────────────────────────────────────────────────────────────
+// What the web view actually handed us, printed where someone can read it off
+// a phone. Chasing a strip of dead space under the tab bar cost three releases
+// of guessing from screenshots, because every candidate cause looks identical
+// once it is a photo: a viewport shorter than the screen, an inset the OS
+// over-reports, and a bar parked at the wrong place all leave the same band.
+// These four numbers separate them. screen vs viewport says whether we were
+// given the whole display; safe says what the OS claims to need back; bar says
+// where the bar's bottom edge actually landed, which should equal the viewport
+// height and nothing else.
+function renderDisplayInfo() {
+  const el = document.getElementById('about-display');
+  if (!el) return;
+  // env() is only readable through something that resolves it.
+  const probe = document.createElement('div');
+  probe.style.cssText = 'position:absolute;visibility:hidden;left:0;top:0;width:0;height:0;' +
+    'padding:env(safe-area-inset-top,0px) 0 env(safe-area-inset-bottom,0px) 0';
+  document.body.appendChild(probe);
+  const cs = getComputedStyle(probe);
+  const insetTop = Math.round(parseFloat(cs.paddingTop) || 0);
+  const insetBottom = Math.round(parseFloat(cs.paddingBottom) || 0);
+  probe.remove();
+
+  const bar = document.querySelector('.sidebar');
+  const barBottom = bar ? Math.round(bar.getBoundingClientRect().bottom) : 0;
+  const mode = window.matchMedia('(display-mode: standalone)').matches ? 'standalone'
+    : navigator.standalone ? 'standalone-ios' : 'browser';
+  el.textContent =
+    `view ${Math.round(window.innerWidth)}x${Math.round(window.innerHeight)} · ` +
+    `screen ${Math.round(screen.width)}x${Math.round(screen.height)} · ` +
+    `safe ${insetTop}/${insetBottom} · bar ${barBottom} · ${mode}`;
+}
+
 function loadSettings() {
   document.getElementById('set-name').value = profile.name || '';
   document.getElementById('set-minutes').value = profile.default_minutes != null ? profile.default_minutes : '';
@@ -1960,6 +2002,7 @@ function loadSettings() {
   document.getElementById('conn-card').style.display = connSource === 'device' ? '' : 'none';
   syncThemeButtons();
   renderAbout();
+  renderDisplayInfo();
 }
 async function saveSettings(btn) {
   const mins = parseFloat(document.getElementById('set-minutes').value);
