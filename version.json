@@ -1,1 +1,1 @@
-{"version":14,"note":"v14: the bottom tab bar is now the same colour as the bar the OS paints under it, so it no longer ends in a seam with a band of not-quite-matching dark below."}
+{"version":15,"note":"v15: the bottom tab bar is pinned to the viewport instead of the end of the layout, so it sits on the bottom edge of the phone rather than wherever 100dvh happens to think the bottom is."}

@@ -405,6 +405,19 @@ input[type=checkbox]{width:auto;margin:0}
        bar rather than a gap under it. */
     /* max(), so there is always a little breathing room under the labels even
        on a device with no home indicator to inset for. */
+    /* PINNED TO THE VIEWPORT, not parked at the end of the flex column.
+       This is the fix for the strip of dead space under the bar, and it has now
+       bitten twice. The bar used to sit at the end of a column-reverse flex
+       layout inside .app, which is height:100% of a body sized with 100dvh — so
+       the bar landed wherever dvh said the bottom was. On an installed iOS PWA
+       that is ~80px short of the real bottom, and the leftover strip showed as
+       a band under the bar. Sizing the body with dvh was the previous attempt
+       at this and it did not take: the number dvh reports is the broken part,
+       so anything derived from it lands in the same wrong place.
+       position:fixed sidesteps the question. Fixed elements resolve against the
+       layout viewport, and with viewport-fit=cover that IS the whole screen, so
+       bottom:0 is the physical bottom of the phone whatever dvh believes. */
+    position:fixed;left:0;right:0;bottom:0;
     padding-bottom:max(env(safe-area-inset-bottom,0px),.35rem);
     /* NO background of its own — it inherits --bg2 from the base .sidebar rule,
        and that is the whole point. Every surface the OS paints around the app
@@ -417,7 +430,7 @@ input[type=checkbox]{width:auto;margin:0}
        never had that problem because it was already --bg2 — which is exactly
        why the gap only ever showed up at the bottom. Change this colour and you
        have to change theme-color, manifest.json and applyTheme() with it. */
-    position:relative;z-index:500;
+    z-index:500;
   }
   .sidebar-logo,.sidebar-bottom{display:none}
   .sidebar-nav{display:flex;flex:1;padding:.3rem .15rem 0}
@@ -445,7 +458,10 @@ input[type=checkbox]{width:auto;margin:0}
   .toast{bottom:calc(env(safe-area-inset-bottom,0px) + 74px)}
   .topbar{padding:.6rem 1rem;padding-top:calc(.6rem + env(safe-area-inset-top,0px))}
   .topbar-title{font-size:16px}
-  .content{padding:1rem .85rem 2rem}
+  /* The bar is out of flow now, so the scroller has to reserve its height —
+     62px of tabs plus whatever the device insets — or the last row of every
+     list sits under it and can't be reached. */
+  .content{padding:1rem .85rem calc(2rem + 62px + max(env(safe-area-inset-bottom,0px),.35rem))}
   .modal-overlay{align-items:flex-end;padding:0}
   .modal{
     max-width:100%;border-radius:var(--radius-lg) var(--radius-lg) 0 0;max-height:92dvh;
