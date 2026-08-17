@@ -3,8 +3,8 @@
 # The Worker serves the static files and answers /config.json with the Supabase
 # project to use (see worker/index.js). Deploys automatically on every push to
 # `main` once the repo is connected in the Cloudflare dashboard
-# (Workers & Pages -> grading-calendar -> Settings -> Builds).
-name = "grading-calendar"
+# (Workers & Pages -> calendar -> Settings -> Builds).
+name = "calendar"
 main = "worker/index.js"
 compatibility_date = "2025-01-15"
 

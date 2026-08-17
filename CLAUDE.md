@@ -52,7 +52,7 @@ Shipping unverified is the one thing this instruction does not license.
   numbered `// ── N. NAME ──` banners.
 - **Backend:** Supabase (hosted Postgres + Auth), row-level security on. Three
   tables: `profiles`, `teachers`, `assignments`. Schema in `schema.sql`.
-- **Hosting:** ONE Cloudflare Worker named `grading-calendar` (`wrangler.toml`,
+- **Hosting:** ONE Cloudflare Worker named `calendar` (`wrangler.toml`,
   `worker/index.js`). It serves `index.html`, `sw.js`, `manifest.json`,
   `version.json` and the icons through the `ASSETS` binding, and does exactly
   one other thing: answers `/config.json` with the Supabase project to use (see
