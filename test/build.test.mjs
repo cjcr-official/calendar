@@ -75,6 +75,31 @@ for (const i of manifest.icons) ok(existsSync(join(ROOT, i.src)), `manifest icon
 ok(manifest.icons.some(i => i.purpose === 'maskable'), 'a maskable icon is declared');
 for (const m of HTML.matchAll(/<link[^>]+href="(icon[^"]*\.png)"/g)) ok(existsSync(join(ROOT, m[1])), `${m[1]} referenced by index.html exists`);
 
+// ── the Worker and the client have to agree about /config.json ─────────────
+// The connection lives in Cloudflare's environment; if these two drift the app
+// silently falls back to asking every device to set itself up by hand.
+const worker = readFileSync(join(ROOT, 'worker/index.js'), 'utf8');
+const wrangler = readFileSync(join(ROOT, 'wrangler.toml'), 'utf8');
+
+const clientPath = SCRIPT.match(/fetch\('([\w./-]*config\.json)/);
+ok(clientPath, 'the client fetches a config endpoint');
+ok(worker.includes(`'/${clientPath[1]}'`), `the Worker serves /${clientPath[1]}, which is what the client asks for`);
+for (const v of ['SUPABASE_URL', 'SUPABASE_ANON_KEY']) {
+  ok(worker.includes('env.' + v), `the Worker reads env.${v}`);
+  // Declaring these in wrangler.toml would overwrite the dashboard values on
+  // every deploy — the whole point is that a push can't blank them out.
+  ok(!new RegExp('^\\s*' + v + '\\s*=', 'm').test(wrangler), `${v} is NOT declared in wrangler.toml`);
+}
+ok(/^main\s*=/m.test(wrangler), 'wrangler.toml points at the Worker script');
+ok(/binding\s*=\s*"ASSETS"/.test(wrangler) && worker.includes('env.ASSETS'), 'the assets binding is declared and used');
+// SPA not-found handling answers unmatched paths from the assets WITHOUT running
+// the Worker, which would swallow /config.json before it is ever reached.
+ok(/not_found_handling\s*=\s*"none"/.test(wrangler), 'not_found_handling is "none" so the Worker sees unmatched paths');
+ok(ignoreHasWorker(), 'worker/ is excluded from the deployed assets');
+function ignoreHasWorker() {
+  return readFileSync(join(ROOT, '.assetsignore'), 'utf8').split('\n').map(s => s.trim()).includes('worker/');
+}
+
 const version = JSON.parse(readFileSync(join(ROOT, 'version.json'), 'utf8'));
 ok(Number.isInteger(version.version), 'version.json holds an integer version');
 ok(typeof version.note === 'string' && version.note.length > 0, 'version.json has a note for the update prompt');

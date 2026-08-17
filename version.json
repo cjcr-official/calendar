@@ -1,1 +1,1 @@
-{"version":2,"note":"v2: the setup screen now links straight to your own project's SQL Editor and API keys page as soon as the project URL is filled in."}
+{"version":3,"note":"v3: the Supabase connection can now be stored once in Cloudflare instead of on each device — the app asks the server for it at launch and skips the setup screen."}

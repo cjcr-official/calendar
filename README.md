@@ -53,25 +53,42 @@ code and no secrets to configure.
 You'll get a `grading-calendar.<your-subdomain>.workers.dev` URL. A custom domain
 can be attached later under the Worker's **Domains & Routes**.
 
-### 3. Connect the app to the database
+### 3. Store the connection in Cloudflare
 
-Open the deployed URL. Because no project is compiled into this build yet, the
-app shows its own setup screen: paste the **Project URL** and the **anon key**
-from step 1, press **Connect**, and it checks both before storing them. Then
-create an account and sign in.
+Do this once and **every device is connected** — no setup screen, on any phone.
 
-That connection is stored on that device. To bake it into the build instead — so
-every device and every fresh install is already connected — put the two values at
-the top of the script in `index.html`:
+In the Cloudflare dashboard: **Workers & Pages → `grading-calendar` → Settings →
+Variables and Secrets → Add**. Add two, both as **Secret**:
 
-```js
-const BUILTIN_SUPABASE_URL = 'https://xxxxxxxx.supabase.co';
-const BUILTIN_SUPABASE_KEY = 'eyJhbGciOi...';
-```
+| Name | Value |
+|---|---|
+| `SUPABASE_URL` | `https://xxxxxxxx.supabase.co` (Project URL from step 1) |
+| `SUPABASE_ANON_KEY` | the `anon` / `public` key from step 1 |
 
-Then bump `version.json` and push. The anon key is designed to be public — it can
-only reach rows that row-level security already allows, which is why the setup
-screen is safe to use on a phone and why the key is safe in the file.
+Deploy (or just push anything) and open the app. The Worker answers
+`/config.json` with those two values, the app reads it at launch, and goes
+straight to the sign-in screen.
+
+**Add them as Secrets, not plaintext variables.** A plaintext variable added in
+the dashboard is overwritten by the next deploy unless it is also declared in
+`wrangler.toml` — and it deliberately isn't, so that a push can never blank out
+your configuration. Secrets survive every deploy.
+
+Neither value is really secret. The anon key is *designed* to be public: it can
+only reach rows that row-level security already allows. Keeping it in Cloudflare
+rather than in `index.html` just means you can point the app at a different
+project without touching the code.
+
+**Fallbacks, in priority order** — the app tries each in turn, so it is never
+stuck:
+
+1. `BUILTIN_SUPABASE_URL` / `BUILTIN_SUPABASE_KEY` at the top of the script in
+   `index.html`, if you'd rather compile them in.
+2. `/config.json` from the Worker — the setup above.
+3. Whatever that device was set up with by hand.
+4. Nothing configured anywhere → the app shows its own setup screen, which walks
+   through creating the project, links to that project's SQL Editor and API keys
+   page, and validates the URL and key before storing them on that device.
 
 ### 4. Install it on the phone
 

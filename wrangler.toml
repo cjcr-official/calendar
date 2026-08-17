@@ -1,14 +1,26 @@
-# Cloudflare Workers static hosting for the Grading Calendar PWA.
+# Cloudflare Worker hosting for the Grading Calendar PWA.
 #
-# There is no server-side code: the app is index.html talking straight to
-# Supabase, so this Worker only serves the static files. Deploys automatically
-# on every push to `main` once the repo is connected in the Cloudflare dashboard
-# (Workers & Pages -> the `grading-calendar` Worker -> Settings -> Builds).
+# The Worker serves the static files and answers /config.json with the Supabase
+# project to use (see worker/index.js). Deploys automatically on every push to
+# `main` once the repo is connected in the Cloudflare dashboard
+# (Workers & Pages -> grading-calendar -> Settings -> Builds).
 name = "grading-calendar"
+main = "worker/index.js"
 compatibility_date = "2025-01-15"
 
 # Serves index.html, sw.js, manifest.json, version.json and the icons.
 # See .assetsignore for what is kept out of the bundle.
+#
+# not_found_handling is "none" deliberately: with single-page-application
+# handling, an unmatched path is answered from the assets without the Worker
+# ever running, which would swallow /config.json. The Worker does the index.html
+# fallback itself instead.
 [assets]
 directory = "./"
-not_found_handling = "single-page-application"
+binding = "ASSETS"
+not_found_handling = "none"
+
+# NOTE there is deliberately no [vars] block. SUPABASE_URL and
+# SUPABASE_ANON_KEY are set in the Cloudflare dashboard as Secrets
+# (Settings -> Variables and Secrets). Declaring them here would mean every
+# deploy overwrote whatever is configured there.

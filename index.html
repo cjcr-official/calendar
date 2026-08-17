@@ -630,11 +630,14 @@ input[type=checkbox]{width:auto;margin:0}
               <button class="btn btn-sm btn-primary" id="about-update-btn" onclick="doUpdate()" style="display:none"><i class="ti ti-download"></i> Update now</button>
             </div>
           </div>
-          <div class="card" id="conn-card">
+          <div class="card">
             <div class="card-head"><div class="card-title">Database</div></div>
-            <div style="font-size:13px;color:var(--text2);margin-bottom:.9rem">Connected to <span class="mono" id="set-project" style="color:var(--text);word-break:break-all"></span></div>
-            <button class="btn btn-sm btn-danger" onclick="disconnectProject()"><i class="ti ti-plug-off"></i> Disconnect this device</button>
-            <div class="hint">Signs you out and forgets the project on this device only. Your data stays in Supabase.</div>
+            <div style="font-size:13px;color:var(--text2)">Connected to <span class="mono" id="set-project" style="color:var(--text);word-break:break-all"></span></div>
+            <div class="hint" id="conn-origin" style="margin-bottom:.9rem"></div>
+            <div id="conn-card">
+              <button class="btn btn-sm btn-danger" onclick="disconnectProject()"><i class="ti ti-plug-off"></i> Disconnect this device</button>
+              <div class="hint">Signs you out and forgets the project on this device only. Your data stays in Supabase.</div>
+            </div>
           </div>
         </div>
       </div>
@@ -756,8 +759,41 @@ function savedConn() {
   try { const v = JSON.parse(localStorage.getItem(CONN_KEY) || 'null'); return (v && v.url && v.key) ? v : null; }
   catch (e) { return null; }
 }
-const conn = BUILTIN_SUPABASE_URL ? {url: BUILTIN_SUPABASE_URL, key: BUILTIN_SUPABASE_KEY} : savedConn();
-const sb = conn ? supabase.createClient(conn.url, conn.key) : null;
+
+// Resolved once, during boot(), in priority order:
+//   1. compiled into this file (BUILTIN_*)
+//   2. served by our own Cloudflare Worker at /config.json, which reads the
+//      SUPABASE_URL / SUPABASE_ANON_KEY environment variables — this is the
+//      normal deployment: set them once in Cloudflare and EVERY device is
+//      connected, with no setup screen anywhere.
+//   3. whatever this device was set up with by hand (localStorage)
+// Nothing here is secret: the anon key is public by design and RLS is what
+// protects the rows. It lives server-side only so it can be changed in one
+// place instead of on every phone.
+let conn = null;
+let connSource = null;      // 'builtin' | 'worker' | 'device'
+let sb = null;
+
+async function resolveConnection() {
+  if (BUILTIN_SUPABASE_URL && BUILTIN_SUPABASE_KEY) {
+    connSource = 'builtin';
+    return {url: BUILTIN_SUPABASE_URL, key: BUILTIN_SUPABASE_KEY};
+  }
+  try {
+    // Relative, so it works on workers.dev and on a custom domain alike.
+    const res = await fetch('config.json?t=' + Date.now(), {cache: 'no-store'});
+    if (res.ok) {
+      const c = await res.json();
+      if (c && c.url && c.key) { connSource = 'worker'; return {url: c.url, key: c.key}; }
+    }
+  } catch (e) {
+    // Offline, or hosted somewhere without the Worker — fall through to the
+    // device's own connection rather than blocking on the network.
+  }
+  const saved = savedConn();
+  if (saved) connSource = 'device';
+  return saved;
+}
 
 // The exact SQL the setup screen shows. Kept here (not only in schema.sql) so a
 // user who never opens the repo can still set the database up from the app.
@@ -1742,9 +1778,14 @@ function loadSettings() {
   document.getElementById('set-minutes').value = profile.default_minutes != null ? profile.default_minutes : '';
   document.getElementById('set-email').textContent = currentUser ? currentUser.email : '';
   document.getElementById('set-project').textContent = conn ? conn.url.replace(/^https?:\/\//, '') : '—';
-  // The disconnect card only makes sense for a device-configured connection; a
-  // build with the project compiled in has nothing to forget.
-  document.getElementById('conn-card').style.display = (conn && !BUILTIN_SUPABASE_URL) ? '' : 'none';
+  document.getElementById('conn-origin').textContent =
+    connSource === 'worker' ? 'Configured on the server, so every device gets it automatically.'
+      : connSource === 'builtin' ? 'Built into the app.'
+      : 'Set up on this device.';
+  // "Disconnect" only makes sense for a device-configured connection: when the
+  // server or the build supplies it there is nothing on this phone to forget,
+  // and clearing it would just be re-fetched on the next launch.
+  document.getElementById('conn-card').style.display = connSource === 'device' ? '' : 'none';
   syncThemeButtons();
   renderAbout();
 }
@@ -1864,8 +1905,10 @@ function showApp() {
 }
 
 async function boot() {
-  // No project configured yet — the setup screen is the whole app.
-  if (!sb) { showSetup(); return; }
+  conn = await resolveConnection();
+  // No project configured anywhere — the setup screen is the whole app.
+  if (!conn) { showSetup(); return; }
+  sb = supabase.createClient(conn.url, conn.key);
 
   // Safety net: never leave the loading screen up forever, whatever fails.
   const bail = setTimeout(() => {
