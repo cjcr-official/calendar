@@ -1,1 +1,1 @@
-{"version":3,"note":"v3: the Supabase connection can now be stored once in Cloudflare instead of on each device — the app asks the server for it at launch and skips the setup screen."}
+{"version":4,"note":"v4: adds a Force reload button in Settings, About, for when the app looks stale but the version numbers say it is current."}
