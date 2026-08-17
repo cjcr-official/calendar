@@ -1,1 +1,1 @@
-{"version":13,"note":"v13: the icon is now built on the Bookkeeper icon's own measurements — same footprint, same page rounding, same tick — with the accent bar rotated from the book's spine to the calendar's header."}
+{"version":14,"note":"v14: the bottom tab bar is now the same colour as the bar the OS paints under it, so it no longer ends in a seam with a band of not-quite-matching dark below."}
