@@ -100,6 +100,18 @@ function ignoreHasWorker() {
   return readFileSync(join(ROOT, '.assetsignore'), 'utf8').split('\n').map(s => s.trim()).includes('worker/');
 }
 
+// ── the deploy workflow is the only gate before a change reaches a phone ────
+const wf = readFileSync(join(ROOT, '.github/workflows/deploy.yml'), 'utf8');
+ok(/branches:\s*\[main\]/.test(wf), 'the workflow deploys on push to main');
+ok(/wrangler-action/.test(wf), 'the workflow actually deploys');
+// The tests must run BEFORE the deploy step, or a red build ships anyway.
+const testAt = wf.indexOf('test/grading.test.mjs');
+const deployAt = wf.indexOf('wrangler-action');
+ok(testAt > -1 && wf.includes('test/build.test.mjs'), 'the workflow runs both suites');
+ok(testAt < deployAt, 'the suites run BEFORE the deploy, so a failure blocks it');
+ok(!/CLOUDFLARE_API_TOKEN\s*[:=]\s*['"a-z0-9]/i.test(wf.replace(/\$\{\{[^}]*\}\}/g, '')),
+   'the API token is referenced as a secret, never inlined');
+
 const version = JSON.parse(readFileSync(join(ROOT, 'version.json'), 'utf8'));
 ok(Number.isInteger(version.version), 'version.json holds an integer version');
 ok(typeof version.note === 'string' && version.note.length > 0, 'version.json has a note for the update prompt');
