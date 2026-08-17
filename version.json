@@ -1,1 +1,1 @@
-{"version":15,"note":"v15: the bottom tab bar is pinned to the viewport instead of the end of the layout, so it sits on the bottom edge of the phone rather than wherever 100dvh happens to think the bottom is."}
+{"version":16,"note":"v16: the space under the tab bar was the home-indicator inset the OS asks for, reported far larger than one needs. It is capped at 34px now, so the tabs sit on the bottom of the screen instead of above an empty apron."}
