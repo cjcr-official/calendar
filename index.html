@@ -84,7 +84,12 @@
 html,body{height:100%}
 body{
   font-family:'Plus Jakarta Sans',sans-serif;background:var(--bg);color:var(--text);
-  font-size:14px;height:100%;overflow:hidden;overscroll-behavior:none;
+  /* 100dvh, not 100%. With viewport-fit=cover on an installed iOS PWA, a
+     percentage height resolves against a viewport that stops short of the
+     home-indicator strip — so the app ended ~80px above the bottom of the
+     screen and the tab bar floated with a band of page background beneath it.
+     dvh measures the real thing. 100% stays above as the fallback. */
+  font-size:14px;height:100%;height:100dvh;overflow:hidden;overscroll-behavior:none;
   -webkit-text-size-adjust:100%;text-size-adjust:100%;
   -webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale;
   font-variant-numeric:tabular-nums;font-feature-settings:"tnum" 1;
@@ -332,9 +337,17 @@ input[type=checkbox]{width:auto;margin:0}
   bottom:max(1.25rem,env(safe-area-inset-bottom,1rem));z-index:2000;
   background:var(--surface2);border:1px solid var(--border2);color:var(--text);
   padding:.7rem 1.1rem;border-radius:var(--radius-pill);font-size:13px;font-weight:600;
-  box-shadow:var(--shadow);transition:transform .25s;max-width:88vw;text-align:center;
+  box-shadow:var(--shadow);max-width:88vw;text-align:center;
+  /* Hiding by transform alone did NOT hide it. An empty toast is just padding
+     — a ~35x38 pill — sitting 34px up from the bottom on a device with a home
+     indicator, and translateY(140%) only moves it 1.4x its own height (~53px).
+     Net result: ~19px of an empty pill parked dead centre at the bottom of
+     every screen, looking like a stray dot. Distance can't be trusted when the
+     element's height is what's being multiplied, so hide it outright. */
+  opacity:0;visibility:hidden;pointer-events:none;
+  transition:transform .25s,opacity .2s,visibility .25s;
 }
-.toast.show{transform:translateX(-50%) translateY(0)}
+.toast.show{transform:translateX(-50%) translateY(0);opacity:1;visibility:visible}
 .toast.success{border-color:rgba(34,197,94,.4);color:var(--green)}
 .toast.error{border-color:rgba(240,82,82,.4);color:var(--red)}
 
@@ -369,7 +382,9 @@ input[type=checkbox]{width:auto;margin:0}
        The padding below is iOS's home-indicator strip, which must stay clear of
        anything tappable; with a solid background it now reads as part of the
        bar rather than a gap under it. */
-    padding-bottom:env(safe-area-inset-bottom,0px);background:var(--surface);
+    /* max(), so there is always a little breathing room under the labels even
+       on a device with no home indicator to inset for. */
+    padding-bottom:max(env(safe-area-inset-bottom,0px),.35rem);background:var(--surface);
     position:relative;z-index:500;
   }
   .sidebar-logo,.sidebar-bottom{display:none}
@@ -393,6 +408,9 @@ input[type=checkbox]{width:auto;margin:0}
     transition:background .18s,color .18s;
   }
   .nav-item.active i{background:var(--accent-bg)}
+  /* Clear the tab bar (62px + whatever the device insets) rather than landing
+     on top of it. */
+  .toast{bottom:calc(env(safe-area-inset-bottom,0px) + 74px)}
   .topbar{padding:.6rem 1rem;padding-top:calc(.6rem + env(safe-area-inset-top,0px))}
   .topbar-title{font-size:16px}
   .content{padding:1rem .85rem 2rem}

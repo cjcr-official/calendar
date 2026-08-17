@@ -7,7 +7,7 @@ teachers at once. It runs as an installable phone PWA. Each stack of grading is 
 *batch* (`assignments` row): a teacher, a class, a due date, an item count, and
 how far through it the user is.
 
-Current version: **8** (see `version.json` — that file is the source of truth).
+Current version: **9** (see `version.json` — that file is the source of truth).
 
 ---
 
