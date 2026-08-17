@@ -448,18 +448,21 @@ input[type=checkbox]{width:auto;margin:0}
 <!-- shared logo mark (matches icon.png) -->
 <svg width="0" height="0" style="position:absolute" aria-hidden="true">
   <symbol id="gc-logo" viewBox="0 0 100 100">
-    <!-- A calendar page cut out of a filled green tile, tick in the body. The
-         green is kept off teal on purpose — the previous mark was a dark tile
-         with a bar and a thin tick, which is the same three moves as another
-         app on the home screen, and the only thing telling them apart was a
-         hue nobody can judge at 50px. -->
-    <defs><linearGradient id="gcbar" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#4ade80"/><stop offset="100%" stop-color="#059669"/></linearGradient></defs>
-    <rect x="0" y="0" width="100" height="100" rx="17" fill="url(#gcbar)"/>
-    <rect x="31" y="14" width="8" height="18" rx="4" fill="#ffffff" opacity=".5"/>
-    <rect x="61" y="14" width="8" height="18" rx="4" fill="#ffffff" opacity=".5"/>
-    <rect x="17" y="25" width="66" height="57" rx="10" fill="#0b2a20"/>
-    <path d="M17 35 h66 v-1 a10 10 0 0 0 -10 -9 h-46 a10 10 0 0 0 -10 9 z" fill="#5ef0a8" opacity=".32"/>
-    <polyline points="32,58 44,70 69,44" fill="none" stroke="#5ef0a8" stroke-width="10" stroke-linecap="round" stroke-linejoin="round"/>
+    <!-- A green calendar page with the tick in its body, on a near-black tile.
+         The construction — dark tile, lighter dark panel inset in it, accent
+         bars, light tick — is deliberately shared with the owner's other
+         installed app, so the two read as one family on the home screen; the
+         image (a calendar, not a ledger) and the hue are what tell them apart.
+         Keep this in step with icon.png and friends: same mark, and the PNGs
+         are full-bleed because iOS and Android apply their own mask, while
+         this inline copy rounds its own corners. -->
+    <defs><linearGradient id="gctile" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#132019"/><stop offset="100%" stop-color="#080e0b"/></linearGradient></defs>
+    <rect x="0" y="0" width="100" height="100" rx="17" fill="url(#gctile)"/>
+    <rect x="33.5" y="19" width="8" height="18" rx="4" fill="#34d399"/>
+    <rect x="58.5" y="19" width="8" height="18" rx="4" fill="#34d399"/>
+    <rect x="20" y="31" width="60" height="50" rx="12" fill="#1c332a"/>
+    <path d="M20 43 h60 v-1 a11 11 0 0 0 -11 -11 h-38 a11 11 0 0 0 -11 11 z" fill="#5ef0a8" opacity=".14"/>
+    <polyline points="34.5,59.5 45.5,70.5 66,50" fill="none" stroke="#5ef0a8" stroke-width="9" stroke-linecap="round" stroke-linejoin="round"/>
   </symbol>
 </svg>
 
