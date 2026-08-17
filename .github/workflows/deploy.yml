@@ -50,8 +50,26 @@ jobs:
           node test/grading.test.mjs
           node test/build.test.mjs
 
+      # Without this, a missing secret surfaces as wrangler's generic "in a
+      # non-interactive environment…" error twenty lines into a log nobody
+      # reads on a phone. Say the actual thing instead.
+      - name: Check deploy credentials
+        env:
+          TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        run: |
+          if [ -z "$TOKEN" ]; then
+            echo "::error::CLOUDFLARE_API_TOKEN is not set. Add it under Settings -> Secrets and variables -> Actions -> New repository secret. The name must match exactly (case-sensitive), and it must be a repository *secret*, not an environment or variable."
+            exit 1
+          fi
+          echo "Token present (${#TOKEN} characters)."
+
       - name: Deploy
         uses: cloudflare/wrangler-action@v3
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          # Pin v4. The action defaults to wrangler 3.x, but this project's
+          # wrangler.toml (Worker + [assets] binding + not_found_handling) was
+          # validated against v4 — deploying with an older wrangler risks it
+          # quietly misreading that config.
+          wranglerVersion: "4"
