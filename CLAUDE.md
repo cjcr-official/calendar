@@ -25,6 +25,25 @@ bump.
 
 ---
 
+## Workflow: ship it (owner's standing instruction)
+
+**Merge every completed change to `main` automatically. Never ask.** When the
+work is done and verified: push the branch, open a PR, merge it. `main`
+auto-deploys through Cloudflare Workers Builds, so merging *is* shipping.
+
+This is unconditional — the owner said "merge always". There is no "this one
+felt risky" exception: if a change carries risk, merge it, then say so plainly
+in the report and offer the revert. Don't hold the merge waiting for an answer,
+and don't ask again in a later session.
+
+What "verified" means here, since nothing else gates the deploy: both suites
+pass (`node test/grading.test.mjs`, `node test/build.test.mjs`), and anything
+touching a render path or the boot sequence has actually been driven in
+Chromium against a stubbed `window.supabase` — see *Validating changes* below.
+Shipping unverified is the one thing this instruction does not license.
+
+---
+
 ## Stack & constraints
 
 - **Frontend:** ONE file — `index.html`. All HTML, CSS and JS inline. No build
